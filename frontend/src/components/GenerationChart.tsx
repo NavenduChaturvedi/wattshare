@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import type { Household } from "@/lib/types";
 import { Card } from "./Card";
+import { SunIcon } from "./icons";
 
 export function GenerationChart({ households }: { households: Household[] }) {
   const data = households.map((h) => ({
@@ -21,24 +22,28 @@ export function GenerationChart({ households }: { households: Household[] }) {
   }));
 
   return (
-    <Card title="Generation vs. Consumption" subtitle="Per household, this hour (kWh)">
+    <Card
+      title="Generation vs. Consumption"
+      subtitle="Per household, this hour (kWh)"
+      icon={<SunIcon className="h-4 w-4" />}
+    >
       <div className="h-56">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
             <CartesianGrid stroke="var(--grid-line)" vertical={false} />
-            <XAxis dataKey="id" stroke="var(--foreground-muted)" fontSize={11} tickLine={false} />
-            <YAxis stroke="var(--foreground-muted)" fontSize={11} tickLine={false} width={32} />
+            <XAxis dataKey="id" stroke="var(--ink-muted)" fontSize={11} tickLine={false} />
+            <YAxis stroke="var(--ink-muted)" fontSize={11} tickLine={false} width={32} />
             <Tooltip
               contentStyle={{
-                background: "var(--surface)",
+                background: "var(--card-bg)",
                 border: "1px solid var(--border)",
-                borderRadius: 6,
+                borderRadius: 10,
                 fontSize: 12,
               }}
               formatter={(value) => `${Number(value).toFixed(2)} kWh`}
             />
             <Legend
-              wrapperStyle={{ fontSize: 12, color: "var(--foreground-secondary)" }}
+              wrapperStyle={{ fontSize: 12, color: "var(--ink-secondary)" }}
               iconType="circle"
               iconSize={8}
             />

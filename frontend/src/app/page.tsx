@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import type { Household, MarketState, Trade } from "@/lib/types";
-import { Controls } from "@/components/Controls";
+import { Header } from "@/components/Header";
+import { Hero } from "@/components/Hero";
 import { HouseholdTable } from "@/components/HouseholdTable";
 import { GenerationChart } from "@/components/GenerationChart";
 import { PriceChart, type PricePoint } from "@/components/PriceChart";
@@ -76,24 +77,31 @@ export default function Home() {
   }, [autoPlay]);
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 sm:p-6">
-      <Controls
-        hour={hour}
-        marketState={marketState}
-        isAdvancing={isAdvancing}
-        autoPlay={autoPlay}
-        error={error}
-        onAdvance={advance}
-        onToggleAutoPlay={() => setAutoPlay((v) => !v)}
-      />
+    <div className="min-h-screen p-3 sm:p-6" style={{ background: "var(--page-bg)" }}>
+      <div
+        className="mx-auto flex w-full max-w-6xl flex-col gap-4 rounded-[32px] p-4 sm:p-6"
+        style={{ background: "var(--panel-bg)" }}
+      >
+        <Header householdCount={households.length} />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <PriceChart data={priceHistory} />
-        <GenerationChart households={households} />
+        <Hero
+          hour={hour}
+          marketState={marketState}
+          isAdvancing={isAdvancing}
+          autoPlay={autoPlay}
+          error={error}
+          onAdvance={advance}
+          onToggleAutoPlay={() => setAutoPlay((v) => !v)}
+        />
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <PriceChart data={priceHistory} />
+          <GenerationChart households={households} />
+        </div>
+
+        <HouseholdTable households={households} />
+        <TradeFeed trades={trades} />
       </div>
-
-      <HouseholdTable households={households} />
-      <TradeFeed trades={trades} />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import { Card } from "./Card";
+import { TrendIcon } from "./icons";
 
 export interface PricePoint {
   hour: number;
@@ -19,7 +20,11 @@ export interface PricePoint {
 
 export function PriceChart({ data }: { data: PricePoint[] }) {
   return (
-    <Card title="Clearing Price" subtitle="Rs/kWh, since page load -- dashed lines mark the price floor/ceiling">
+    <Card
+      title="Clearing Price"
+      subtitle="Rs/kWh, since page load -- dashed lines mark the price floor/ceiling"
+      icon={<TrendIcon className="h-4 w-4" />}
+    >
       <div className="h-56">
         {data.length === 0 ? (
           <EmptyState message="Run the market to see the clearing price." />
@@ -30,24 +35,24 @@ export function PriceChart({ data }: { data: PricePoint[] }) {
               <XAxis
                 dataKey="hour"
                 tickFormatter={(h: number) => `${String(h).padStart(2, "0")}:00`}
-                stroke="var(--foreground-muted)"
+                stroke="var(--ink-muted)"
                 fontSize={11}
                 tickLine={false}
               />
               <YAxis
                 domain={[3, 13]}
-                stroke="var(--foreground-muted)"
+                stroke="var(--ink-muted)"
                 fontSize={11}
                 tickLine={false}
                 width={32}
               />
-              <ReferenceLine y={4} stroke="var(--foreground-muted)" strokeDasharray="3 3" />
-              <ReferenceLine y={12} stroke="var(--foreground-muted)" strokeDasharray="3 3" />
+              <ReferenceLine y={4} stroke="var(--ink-muted)" strokeDasharray="3 3" />
+              <ReferenceLine y={12} stroke="var(--ink-muted)" strokeDasharray="3 3" />
               <Tooltip
                 contentStyle={{
-                  background: "var(--surface)",
+                  background: "var(--card-bg)",
                   border: "1px solid var(--border)",
-                  borderRadius: 6,
+                  borderRadius: 10,
                   fontSize: 12,
                 }}
                 labelFormatter={(h) => `Hour ${String(h).padStart(2, "0")}:00`}
@@ -73,7 +78,7 @@ export function PriceChart({ data }: { data: PricePoint[] }) {
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="flex h-full items-center justify-center text-sm" style={{ color: "var(--foreground-muted)" }}>
+    <div className="flex h-full items-center justify-center text-sm" style={{ color: "var(--ink-muted)" }}>
       {message}
     </div>
   );

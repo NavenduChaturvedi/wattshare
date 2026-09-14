@@ -1,20 +1,36 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f9f9f7;
-  --surface: #fcfcfb;
-  --foreground: #0b0b0b;
-  --foreground-secondary: #52514e;
-  --foreground-muted: #898781;
-  --border: rgba(11, 11, 11, 0.1);
-  --grid-line: #e1e0d9;
+  color-scheme: light;
+  --page-bg: #e9e6df;
+  --panel-bg: #f7f4ee;
+  --card-bg: #ffffff;
 
-  --series-generation: #2a78d6; /* categorical slot 1 (blue) */
-  --series-consumption: #eb6834; /* categorical slot 2 (orange) */
-  --series-price: #2a78d6;
+  --ink: #16140f;
+  --ink-secondary: #6b6459;
+  --ink-muted: #9c968a;
+  --border: rgba(22, 20, 15, 0.08);
+  --grid-line: #e7e2d8;
+
+  --accent: #e8623d;
+  --accent-soft: #fbe3d8;
+  --accent-contrast: #ffffff;
+
+  --strong: #16140f;
+  --strong-contrast: #ffffff;
+
+  --series-generation: #e8623d; /* solar -- matches the accent */
+  --series-consumption: #16140f;
+  --series-price: #e8623d;
 
   --status-good: #0ca30c;
+  --status-good-soft: #e3f5e1;
   --status-critical: #d03b3b;
+  --status-critical-soft: #fbe4e2;
+
+  /* aliases for Tailwind's generated background/foreground utilities */
+  --background: var(--page-bg);
+  --foreground: var(--ink);
 }
 
 @theme inline {
@@ -24,27 +40,8 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0d0d0d;
-    --surface: #1a1a19;
-    --foreground: #ffffff;
-    --foreground-secondary: #c3c2b7;
-    --foreground-muted: #898781;
-    --border: rgba(255, 255, 255, 0.1);
-    --grid-line: #2c2c2a;
-
-    --series-generation: #3987e5;
-    --series-consumption: #d95926;
-    --series-price: #3987e5;
-
-    --status-good: #0ca30c;
-    --status-critical: #e66767;
-  }
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--page-bg);
+  color: var(--ink);
   font-family: var(--font-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
 }

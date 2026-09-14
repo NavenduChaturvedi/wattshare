@@ -81,3 +81,30 @@ export function PlayIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+export function ShieldIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M12 3 5 6v5c0 4.5 3 7.7 7 10 4-2.3 7-5.5 7-10V6l-7-3Z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
+export function TagIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M12 3h6a2 2 0 0 1 2 2v6a1 1 0 0 1-.3.7l-8 8a1 1 0 0 1-1.4 0l-6.7-6.7a1 1 0 0 1 0-1.4l8-8A1 1 0 0 1 12 3Z" />
+      <circle cx="16.5" cy="7.5" r="1.2" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function LeafIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M20 4c-9 0-16 5-16 14 9 0 14-5 16-14Z" />
+      <path d="M5 19c3-4 6-7 12-11" />
+    </svg>
+  );
+}

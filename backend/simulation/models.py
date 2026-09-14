@@ -8,6 +8,7 @@ class Household:
     has_solar: bool
     capacity_kw: float
     baseline_kw: float
+    zone_id: str = "Z1"
     current_generation_kwh: float = 0.0
     current_consumption_kwh: float = 0.0
     battery_stored_kwh: float = 0.0

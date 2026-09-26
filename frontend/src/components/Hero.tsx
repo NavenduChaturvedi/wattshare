@@ -114,6 +114,19 @@ export function Hero({
               )}
             </p>
           </>
+        ) : marketState?.timestamp != null ? (
+          // An hour closed with no local supply (night, before batteries kick in): no price to show.
+          <>
+            <h2 className="text-3xl font-bold sm:text-4xl" style={{ color: "var(--ink)" }}>
+              Grid only
+            </h2>
+            <p className="mt-1 text-sm" style={{ color: "var(--ink-secondary)" }}>
+              {String(marketState.timestamp).padStart(2, "0")}:00 had no local supply &middot; demand{" "}
+              {marketState.total_demand_kwh.toFixed(1)} kWh came from the grid
+              {marketState.transformer_load_pct != null &&
+                ` · transformer importing ${Math.round(marketState.transformer_load_pct)}%`}
+            </p>
+          </>
         ) : (
           <>
             <h2 className="text-3xl font-bold sm:text-4xl" style={{ color: "var(--ink)" }}>

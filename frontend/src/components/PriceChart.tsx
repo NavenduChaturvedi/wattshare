@@ -22,7 +22,7 @@ export function PriceChart({ data }: { data: PricePoint[] }) {
   return (
     <Card
       title="Clearing Price"
-      subtitle="Rs/kWh, since page load -- dashed lines mark the price floor/ceiling"
+      subtitle="Rs/kWh, last 24 hours -- dashed lines mark the price floor/ceiling"
       icon={<TrendIcon className="h-4 w-4" />}
     >
       <div className="h-56">

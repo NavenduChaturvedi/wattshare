@@ -47,6 +47,13 @@
 >
 > **All planned phases (A–C) are done.**
 >
+> **Live clock (2026-09-26).** The dashboard used to open at 00:00 every time (the backend restarts on each free-tier wake) and needed manual Advance clicks.
+> - **The clock:** the simulation now follows real IST time. `backend/simulation/clock.py` is stateless arithmetic over the wall clock.
+> - **Catching up:** every request catches the simulation up, serialised by a lock so an hour is never dispatched twice. Startup replays today up to the current hour.
+> - **Controls:** `/match` and `/simulate/tick` return 409 while live. `clock: "manual"` restores stepping. `clock_speed` speeds up time for demos.
+> - **Dashboard:** it polls every 20 s and at each hour boundary, and shows a LIVE badge with a countdown to the next hour.
+> - **Tests:** 11 frozen-time tests, including concurrent requests at an hour boundary, plus a 16-check browser run covering real-time, 360× and manual modes.
+>
 > **Buying options: choose your amount (2026-09-26).**
 > - `GET /listings/{id}/quote` is a read-only preview built on `marketplace/quote.py`, which the purchase itself also uses.
 > - `POST /listings/{id}/buy` accepts a `max_price_per_kwh` guard and returns 409 if the price has risen, without writing anything.

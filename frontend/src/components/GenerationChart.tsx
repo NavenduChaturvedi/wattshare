@@ -32,13 +32,13 @@ export function GenerationChart({ households }: { households: Household[] }) {
           <BarChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: -4 }}>
             <CartesianGrid stroke="var(--grid-line)" vertical={false} />
             <XAxis dataKey="id" stroke="var(--ink-muted)" fontSize={11} tickLine={false} />
-            {/* Real-data values are fractional kWh (0.55, 1.1...) -- one decimal keeps labels short and unclipped. */}
+            {/* Real-data ticks are fractional kWh (0.25, 0.5...): up to two decimals, trailing zeros dropped. */}
             <YAxis
               stroke="var(--ink-muted)"
               fontSize={11}
               tickLine={false}
               width={36}
-              tickFormatter={(v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1))}
+              tickFormatter={(v: number) => String(Number(v.toFixed(2)))}
             />
             <Tooltip
               contentStyle={{

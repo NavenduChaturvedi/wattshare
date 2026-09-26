@@ -234,6 +234,8 @@ Environment overrides for the API:
 - `WATTSHARE_SEED`: seeds the simulation, the same as `--seed` for the CLIs.
 - `WATTSHARE_DATA_SOURCE`: `real` or `synthetic`.
 - `WATTSHARE_SIM_DATE`: e.g. `2019-07-11` for the cloudy monsoon fixture.
+- `WATTSHARE_CLOCK`: `live` (default) or `manual`.
+- `WATTSHARE_CLOCK_SPEED`: simulated hours per real hour in live mode (default `1`).
 - `WATTSHARE_DB_PATH`: where the SQLite file lives (default `backend/wattshare.db`).
 
 ### Tests
@@ -255,23 +257,34 @@ cp .env.example .env.local   # NEXT_PUBLIC_API_URL, defaults to http://127.0.0.1
 npm run dev
 ```
 
-Open http://localhost:3000 with the backend running. Each simulated hour runs in two phases:
-- **While the hour is open,** the marketplace trades. Sellers list surplus, and
-  buyers buy from listings or use Smart Match.
-- **Advance Hour** closes the hour. The dispatcher clears whatever surplus and
-  deficit is left, at that hour's clearing price, and then the next hour opens.
+Open http://localhost:3000 with the backend running. The **clock is live**: the
+simulated hour follows real time in India (IST).
+- **Opening the dashboard:** at 16:20 IST you land on the 16:00 hour, with
+  today's earlier hours already replayed (prices, trades, battery state).
+- **Each hour:** while it's open, the marketplace trades. Sellers list surplus,
+  and buyers buy from listings or use Smart Match. When the real hour turns,
+  the dispatcher clears whatever surplus and deficit is left, and the next hour
+  opens.
+- **How the clock moves:** there's no timer thread to die on sleeping free-tier
+  hosting. Every API request first catches the simulation up to the wall
+  clock, and the dashboard checks in every 20 s and right at each hour
+  boundary.
 
-**Auto-play** repeats this continuously.
+Other clock settings (in the config, or as environment variables):
+- **Faster time:** `clock_speed` (`WATTSHARE_CLOCK_SPEED`) is simulated hours
+  per real hour. For example, `60` = one hour per minute, for demos.
+- **Step by hand:** `"clock": "manual"` (`WATTSHARE_CLOCK=manual`) brings back
+  the original step-through controls, **Advance Hour** and **Auto-play**.
 
 ## API reference
 
 | Endpoint | Method | Description |
 |---|---|---|
 | `/households` | GET | Current state of all households |
-| `/simulation` | GET | The hour currently open for trading |
+| `/simulation` | GET | The hour currently open for trading, plus the live clock's local time and seconds to the next hour |
 | `/ledger/verify` | GET | Re-walk the trade hash chain; reports the first broken trade |
-| `/simulate/tick` | POST | Advance the simulation by one hour |
-| `/match` | POST | Run one matching cycle at the current hour |
+| `/simulate/tick` | POST | Advance the simulation by one hour (manual clock only; 409 while live) |
+| `/match` | POST | Dispatch the open hour (manual clock only; 409 while live) |
 | `/trades` | GET | Full trade history |
 | `/market-state` | GET | Latest clearing price / supply / demand snapshot |
 | `/market/summary` | GET | Current price, listing average/best, grid health, price trend |
@@ -309,7 +322,8 @@ Things to know about Render's free tier:
   server..." and keeps retrying for up to 90 seconds instead of erroring.
 - **Ephemeral disk.** The SQLite file doesn't survive a restart. That's fine
   here, because the database resets on every boot by design, so it always
-  matches the fresh in-memory simulation.
+  matches the fresh in-memory simulation. With the live clock, a restart
+  replays today up to the current hour, so visitors never land on 00:00.
 - **No network needed at runtime.** The default config's solar data and load
   profiles are committed, so nothing is fetched while the app runs.
 

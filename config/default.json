@@ -15,5 +15,7 @@
   "battery_share": 0.5,
   "battery_kwh": 5.0,
   "battery_kw": 1.5,
-  "battery_threshold_price": 6.5
+  "battery_threshold_price": 6.5,
+  "clock": "live",
+  "clock_speed": 1
 }

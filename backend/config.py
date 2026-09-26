@@ -1,6 +1,6 @@
 """Simulation config: config/default.json, optionally replaced by the file named in
 WATTSHARE_CONFIG, then individual env overrides on top (WATTSHARE_SEED,
-WATTSHARE_DATA_SOURCE, WATTSHARE_SIM_DATE)."""
+WATTSHARE_DATA_SOURCE, WATTSHARE_SIM_DATE, WATTSHARE_CLOCK, WATTSHARE_CLOCK_SPEED)."""
 
 import json
 import os
@@ -45,6 +45,13 @@ class SimConfig(BaseModel):
     # Rs/kWh: store below, release at/above. Just above the balanced-market price (6), so
     # batteries fill while the market is in surplus and release once it turns scarce.
     battery_threshold_price: float = Field(default=6.5, gt=0)
+    # "live": the simulated hour follows real time in location.timezone (the API
+    # catches the simulation up on every request). "manual": hours only advance
+    # via POST /match + /simulate/tick -- the original step-through mode.
+    clock: Literal["live", "manual"] = "live"
+    # Simulated hours per real hour in live mode. 1 = real time; 60 = one simulated
+    # hour per real minute (for demos).
+    clock_speed: float = Field(default=1.0, gt=0, le=3600)
 
 
 def load_config(path: Optional[Union[str, Path]] = None) -> SimConfig:
@@ -57,5 +64,9 @@ def load_config(path: Optional[Union[str, Path]] = None) -> SimConfig:
         data["data_source"] = os.environ["WATTSHARE_DATA_SOURCE"]
     if os.environ.get("WATTSHARE_SIM_DATE"):
         data["sim_date"] = os.environ["WATTSHARE_SIM_DATE"]
+    if os.environ.get("WATTSHARE_CLOCK"):
+        data["clock"] = os.environ["WATTSHARE_CLOCK"]
+    if os.environ.get("WATTSHARE_CLOCK_SPEED"):
+        data["clock_speed"] = float(os.environ["WATTSHARE_CLOCK_SPEED"])
 
     return SimConfig.model_validate(data)

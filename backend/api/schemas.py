@@ -14,6 +14,9 @@ class ConfigOut(BaseModel):
     households: Literal["demo", "generated"]
     solar_source: str
     load_source: str
+    clock: Literal["live", "manual"]
+    clock_speed: float
+    timezone: str
 
 
 class HouseholdOut(BaseModel):
@@ -59,6 +62,9 @@ class LedgerVerifyOut(BaseModel):
 class SimulationStatusOut(BaseModel):
     hour: int  # the hour currently open for trading (0-23)
     total_ticks: int
+    clock: Literal["live", "manual"]
+    seconds_to_next_hour: Optional[float] = None  # live clock only
+    local_time: Optional[str] = None  # live clock only: simulated local time, ISO 8601
 
 
 class TickResponse(BaseModel):

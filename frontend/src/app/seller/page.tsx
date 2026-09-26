@@ -99,6 +99,10 @@ export default function SellerPage() {
           hour={sim.hour}
           marketState={sim.marketState}
           connection={sim.connection}
+          live={sim.live}
+          nextHourAt={sim.nextHourAt}
+          timezone={sim.config?.timezone ?? null}
+          clockSpeed={sim.config?.clock_speed ?? 1}
           isAdvancing={sim.isAdvancing}
           autoPlay={sim.autoPlay}
           error={sim.error}

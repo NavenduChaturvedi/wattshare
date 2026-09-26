@@ -148,9 +148,12 @@ def test_cors_origins_from_env(monkeypatch):
 
 
 def test_simulation_status_reports_the_open_hour(client):
-    assert client.get("/simulation").json() == {"hour": 0, "total_ticks": 0}
+    status = client.get("/simulation").json()
+    assert (status["hour"], status["total_ticks"], status["clock"]) == (0, 0, "manual")
+    assert status["seconds_to_next_hour"] is None
     advance(client, 3)
-    assert client.get("/simulation").json() == {"hour": 3, "total_ticks": 3}
+    status = client.get("/simulation").json()
+    assert (status["hour"], status["total_ticks"]) == (3, 3)
 
 
 def test_close_then_open_leaves_the_new_hour_open_for_the_marketplace(client):

@@ -23,6 +23,9 @@ export interface SimConfig {
   households: "demo" | "generated";
   solar_source: string;
   load_source: string;
+  clock: "live" | "manual";
+  clock_speed: number; // simulated hours per real hour
+  timezone: string; // IANA, e.g. Asia/Kolkata
 }
 
 export interface Trade {
@@ -53,6 +56,9 @@ export interface LedgerCheck {
 export interface SimulationStatus {
   hour: number; // the hour currently open for trading
   total_ticks: number;
+  clock: "live" | "manual";
+  seconds_to_next_hour: number | null; // live clock only
+  local_time: string | null; // live clock only, ISO 8601
 }
 
 export interface TickResponse {

@@ -1,4 +1,5 @@
 import os
+import threading
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -16,6 +17,7 @@ from backend.marketplace.quote import build_quote
 from backend.marketplace.reliability import compute_reliability_score
 from backend.marketplace.stats import compute_seller_stats
 from backend.marketplace.summary import compute_listing_price_stats, effective_price
+from backend.simulation.clock import LiveClock
 from backend.simulation.engine import SimulationEngine
 
 from . import db
@@ -43,23 +45,32 @@ from .schemas import (
 
 sim_engine: Optional[SimulationEngine] = None
 market_engine: Optional[MarketEngine] = None
+live_clock: Optional[LiveClock] = None  # None in manual mode
+# Serialises clock catch-up: FastAPI runs sync handlers on a threadpool, and two
+# requests racing to close the same hour would double-dispatch it.
+_clock_lock = threading.Lock()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global sim_engine, market_engine
+    global sim_engine, market_engine, live_clock
 
     # Each server run starts from a fresh, consistent simulation at hour 0 --
     # old trade/household rows from a previous run would no longer line up with it.
     db.reset_db()
 
-    sim_engine = SimulationEngine(config=load_config())
+    config = load_config()
+    sim_engine = SimulationEngine(config=config)
     market_engine = MarketEngine()
+    live_clock = LiveClock(config.location.timezone, config.clock_speed) if config.clock == "live" else None
 
     conn = db.get_connection()
     try:
         db.upsert_households(conn, sim_engine.households)
         conn.commit()
+        # Live: replay today up to the current hour, so the first visitor lands on
+        # "now" with the day's prices and trades already there.
+        _catch_up_clock(conn)
     finally:
         conn.close()
 
@@ -85,12 +96,37 @@ app.add_middleware(
 )
 
 
+def _catch_up_clock(conn) -> None:
+    """Live clock: close and open hours until the simulation matches the wall clock.
+    Each closed hour is dispatched exactly as the manual Advance Hour would."""
+    if live_clock is None:
+        return
+    with _clock_lock:
+        target = live_clock.target_ticks()
+        if sim_engine.total_ticks >= target:
+            return
+        while sim_engine.total_ticks < target:
+            _close_hour(conn)
+            sim_engine.tick()
+        db.upsert_households(conn, sim_engine.households)
+        conn.commit()
+
+
 def get_db():
     conn = db.get_connection()
     try:
+        _catch_up_clock(conn)  # every request sees the simulation at the current hour
         yield conn
     finally:
         conn.close()
+
+
+def _require_manual_clock() -> None:
+    if live_clock is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="The simulation clock is live -- hours advance on their own. Set clock to \"manual\" to step through them.",
+        )
 
 
 SOLAR_SOURCE = "Open-Meteo Historical Weather API (hourly shortwave radiation)"
@@ -112,6 +148,9 @@ def get_config():
         households=cfg.households,
         solar_source=SOLAR_SOURCE if real else "synthetic bell curve",
         load_source=LOAD_SOURCE if real else "synthetic morning/evening peaks",
+        clock=cfg.clock,
+        clock_speed=cfg.clock_speed,
+        timezone=cfg.location.timezone,
     )
 
 
@@ -128,12 +167,21 @@ def verify_ledger(conn=Depends(get_db)):
 
 
 @app.get("/simulation", response_model=SimulationStatusOut)
-def get_simulation_status():
-    return SimulationStatusOut(hour=sim_engine.current_hour, total_ticks=sim_engine.total_ticks)
+def get_simulation_status(conn=Depends(get_db)):  # get_db catches the live clock up first
+    status = SimulationStatusOut(
+        hour=sim_engine.current_hour,
+        total_ticks=sim_engine.total_ticks,
+        clock="live" if live_clock else "manual",
+    )
+    if live_clock is not None:
+        status.seconds_to_next_hour = live_clock.seconds_to_next_hour()
+        status.local_time = live_clock.local_time().isoformat(timespec="seconds")
+    return status
 
 
 @app.post("/simulate/tick", response_model=TickResponse)
 def simulate_tick(conn=Depends(get_db)):
+    _require_manual_clock()
     sim_engine.tick()
     db.upsert_households(conn, sim_engine.households)
     conn.commit()
@@ -142,6 +190,20 @@ def simulate_tick(conn=Depends(get_db)):
 
 @app.post("/match", response_model=MatchResponse)
 def run_match(conn=Depends(get_db)):
+    _require_manual_clock()
+    state, trades = _close_hour(conn)
+    db.upsert_households(conn, sim_engine.households)
+    conn.commit()
+    return MatchResponse(
+        market_state=MarketStateOut(**state.__dict__),
+        trades=[TradeOut(**t.__dict__) for t in trades],
+    )
+
+
+def _close_hour(conn):
+    """Dispatch the open hour: the market engine clears whatever surplus/deficit is
+    still open, trades are booked and chained into the ledger, and the clearing
+    price becomes the batteries' signal for the next hour. Doesn't commit."""
     state, trades = market_engine.run_cycle(
         sim_engine.households,
         sim_engine.current_hour,
@@ -155,12 +217,7 @@ def run_match(conn=Depends(get_db)):
         _settle(trade)
     for seller_id in {t.seller_id for t in trades}:
         _shrink_listing_to_open_surplus(conn, seller_id)
-    db.upsert_households(conn, sim_engine.households)
-    conn.commit()
-    return MatchResponse(
-        market_state=MarketStateOut(**state.__dict__),
-        trades=[TradeOut(**t.__dict__) for t in trades],
-    )
+    return state, trades
 
 
 @app.get("/trades", response_model=list[TradeOut])

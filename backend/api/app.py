@@ -29,6 +29,7 @@ from .schemas import (
     MatchResponse,
     PricePointOut,
     SellerStatsOut,
+    SimulationStatusOut,
     SmartMatchRequest,
     SmartMatchResponseOut,
     TickResponse,
@@ -113,6 +114,11 @@ def get_config():
 @app.get("/households", response_model=list[HouseholdOut])
 def get_households(conn=Depends(get_db)):
     return db.fetch_households(conn)
+
+
+@app.get("/simulation", response_model=SimulationStatusOut)
+def get_simulation_status():
+    return SimulationStatusOut(hour=sim_engine.current_hour, total_ticks=sim_engine.total_ticks)
 
 
 @app.post("/simulate/tick", response_model=TickResponse)

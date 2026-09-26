@@ -46,12 +46,13 @@ export function useSimulation() {
           const initialTrades = await api.getTrades();
           const initialMarketState = await api.getMarketState();
           const initialConfig = await api.getConfig();
+        const status = await api.getSimulationStatus();
           if (cancelled) return;
           setConfig(initialConfig);
           setHouseholds(initialHouseholds);
           setTrades(initialTrades);
           setMarketState(initialMarketState);
-          setHour(initialMarketState.timestamp ?? 0);
+          setHour(status.hour);
           if (initialMarketState.timestamp !== null && initialMarketState.clearing_price !== null) {
             setPriceHistory([{ hour: initialMarketState.timestamp, price: initialMarketState.clearing_price }]);
           }
@@ -81,19 +82,19 @@ export function useSimulation() {
     advancingRef.current = true;
     setIsAdvancing(true);
     try {
+      // Close the current hour, then open the next. The marketplace trades during
+      // an hour; the dispatcher clears whatever surplus/deficit is left when it
+      // closes -- dispatching first thing would leave the marketplace nothing to sell.
+      const matchResult = await api.match();
+      const closed = matchResult.market_state;
+      setMarketState(closed);
+      if (closed.timestamp !== null && closed.clearing_price !== null) {
+        setPriceHistory((prev) => [...prev, { hour: closed.timestamp!, price: closed.clearing_price! }]);
+      }
+
       const tickResult = await api.tick();
       setHouseholds(tickResult.households);
       setHour(tickResult.hour);
-
-      const matchResult = await api.match();
-      setMarketState(matchResult.market_state);
-      if (matchResult.market_state.clearing_price !== null) {
-        setPriceHistory((prev) => [...prev, { hour: tickResult.hour, price: matchResult.market_state.clearing_price! }]);
-      }
-
-      // Re-read households: the match just booked trades against their positions.
-      const matchedHouseholds = await api.getHouseholds();
-      setHouseholds(matchedHouseholds);
 
       const tradeHistory = await api.getTrades();
       setTrades(tradeHistory);

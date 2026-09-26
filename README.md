@@ -8,6 +8,14 @@ instead of feeding it back to the grid at low tariffs. A dispatcher engine
 matches buyers and sellers and prices trades dynamically based on local
 supply and demand.
 
+**Live demo:** [wattshare-eta.vercel.app](https://wattshare-eta.vercel.app). The
+backend runs on Render's free tier, so the first load after it has been idle
+can take up to a minute while the server wakes up.
+
+| Dispatcher | Seller | Buyer |
+|---|---|---|
+| ![Dispatcher view](docs/screenshots/dispatcher.png) | ![Seller view](docs/screenshots/seller.png) | ![Buyer view](docs/screenshots/buyer.png) |
+
 This is a portfolio project demonstrating system design, algorithmic thinking
 (matching + dynamic pricing), and full-stack delivery. All data is simulated
 -- there's no real hardware, blockchain, or payment processing involved (see
@@ -197,15 +205,20 @@ cp .env.example .env.local   # NEXT_PUBLIC_API_URL, defaults to http://127.0.0.1
 npm run dev
 ```
 
-Open http://localhost:3000 with the backend running. Click **Advance Hour**
-to step the simulation one hour and run a matching cycle, or **Auto-play** to
-let it run continuously.
+Open http://localhost:3000 with the backend running. Each simulated hour runs in two phases:
+- **While the hour is open,** the marketplace trades. Sellers list surplus, and
+  buyers buy from listings or use Smart Match.
+- **Advance Hour** closes the hour. The dispatcher clears whatever surplus and
+  deficit is left, at that hour's clearing price, and then the next hour opens.
+
+**Auto-play** repeats this continuously.
 
 ## API reference
 
 | Endpoint | Method | Description |
 |---|---|---|
 | `/households` | GET | Current state of all households |
+| `/simulation` | GET | The hour currently open for trading |
 | `/simulate/tick` | POST | Advance the simulation by one hour |
 | `/match` | POST | Run one matching cycle at the current hour |
 | `/trades` | GET | Full trade history |

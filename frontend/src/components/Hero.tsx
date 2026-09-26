@@ -102,8 +102,9 @@ export function Hero({
               </span>
             </h2>
             <p className="mt-1 text-sm" style={{ color: "var(--ink-secondary)" }}>
-              supply {marketState!.total_supply_kwh.toFixed(1)} kWh &middot; demand{" "}
-              {marketState!.total_demand_kwh.toFixed(1)} kWh this hour
+              {String(marketState!.timestamp ?? 0).padStart(2, "0")}:00 cleared at this price &middot; supply{" "}
+              {marketState!.total_supply_kwh.toFixed(1)} kWh &middot; demand{" "}
+              {marketState!.total_demand_kwh.toFixed(1)} kWh
             </p>
           </>
         ) : (
@@ -112,7 +113,7 @@ export function Hero({
               Ready to trade &#9889;
             </h2>
             <p className="mt-1 text-sm" style={{ color: "var(--ink-secondary)" }}>
-              Advance the hour to open the market for this cycle.
+              The marketplace is open. Advance the hour to let the dispatcher clear what&apos;s left.
             </p>
           </>
         )}

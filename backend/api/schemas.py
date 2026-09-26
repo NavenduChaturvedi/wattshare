@@ -43,6 +43,11 @@ class MarketStateOut(BaseModel):
     clearing_price: Optional[float] = None
 
 
+class SimulationStatusOut(BaseModel):
+    hour: int  # the hour currently open for trading (0-23)
+    total_ticks: int
+
+
 class TickResponse(BaseModel):
     hour: int
     households: List[HouseholdOut]

@@ -180,3 +180,23 @@ def test_cors_origins_from_env(monkeypatch):
 
     monkeypatch.setenv("WATTSHARE_CORS_ORIGINS", "https://wattshare.vercel.app/, http://localhost:3000")
     assert cors_origins() == ["https://wattshare.vercel.app", "http://localhost:3000"]
+
+
+def test_simulation_status_reports_the_open_hour(client):
+    assert client.get("/simulation").json() == {"hour": 0, "total_ticks": 0}
+    advance(client, 3)
+    assert client.get("/simulation").json() == {"hour": 3, "total_ticks": 3}
+
+
+def test_close_then_open_leaves_the_new_hour_open_for_the_marketplace(client):
+    # The dashboard's Advance Hour: dispatch clears the closing hour, then the next opens.
+    advance(client, 11, match=False)
+    for _ in range(2):
+        assert client.post("/match").status_code == 200
+        assert client.post("/simulate/tick").status_code == 200
+    hh = households(client)
+    assert all(h["traded_kwh"] == 0 for h in hh.values())  # fresh positions in the open hour
+    seller = max((h for h in hh.values() if h["has_solar"]), key=open_net)
+    listing = client.post("/listings", json={"seller_household_id": seller["id"], "pricing_mode": "auto"}).json()
+    assert listing["units_available_kwh"] > 0
+    assert client.get("/market-state").json()["timestamp"] == 12  # last cleared hour

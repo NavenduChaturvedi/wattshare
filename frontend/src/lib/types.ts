@@ -37,6 +37,11 @@ export interface MarketState {
   clearing_price: number | null;
 }
 
+export interface SimulationStatus {
+  hour: number; // the hour currently open for trading
+  total_ticks: number;
+}
+
 export interface TickResponse {
   hour: number;
   households: Household[];

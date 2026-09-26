@@ -21,15 +21,15 @@ export function PriceSparkline({ points }: { points: MarketTrendPoint[] }) {
         </p>
       ) : (
         <>
-          <div className="mb-2 flex items-center justify-between">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <p className="text-2xl font-bold tabular-nums" style={{ color: "var(--ink)" }}>
               Rs {last.clearing_price.toFixed(2)}
-              <span className="ml-1 text-sm font-medium" style={{ color: "var(--ink-muted)" }}>
+              <span className="ml-1 whitespace-nowrap text-sm font-medium" style={{ color: "var(--ink-muted)" }}>
                 /kWh now
               </span>
             </p>
             <span
-              className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium tabular-nums"
+              className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium tabular-nums"
               style={
                 trendingDown
                   ? { background: "var(--status-good-soft)", color: "var(--status-good)" }

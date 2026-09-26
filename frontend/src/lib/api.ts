@@ -8,6 +8,7 @@ import type {
   PricingMode,
   SellerStats,
   SimConfig,
+  SimulationStatus,
   SmartMatchResult,
   TickResponse,
   Trade,
@@ -28,6 +29,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  getSimulationStatus: () => request<SimulationStatus>("/simulation"),
   getConfig: () => request<SimConfig>("/config"),
   getHouseholds: () => request<Household[]>("/households"),
   tick: () => request<TickResponse>("/simulate/tick", { method: "POST" }),

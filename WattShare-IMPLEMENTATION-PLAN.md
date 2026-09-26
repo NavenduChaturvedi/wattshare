@@ -15,10 +15,14 @@
 >   - Cold-start "waking up" state with retries.
 >   - Boilerplate SVGs removed.
 >   - CI actions moved to v7 and Node 22.
-> - Remaining:
->   - The actual Render and Vercel deploys, which need the account owner.
->   - Screenshots or a GIF for the README.
->   - A check of the mobile layout in a real browser.
+> - Also done:
+>   - **Deployed and verified.** Render (`wattshare-api-wfjq.onrender.com`) and Vercel (`wattshare-eta.vercel.app`) were already wired to auto-deploy from `main`. CORS is locked to the Vercel origin.
+>   - README screenshots (`docs/screenshots/`).
+>   - Mobile check at 390px: no horizontal overflow on any page.
+>   - Fixed clipped y-axis labels on the generation chart.
+>   - **Hour flow reordered:** the marketplace trades while an hour is open, and the dispatcher clears the leftovers when it closes. Before this, dispatching as soon as an hour opened (after the double-sell fix) left the marketplace permanently empty.
+>
+> **Phase B is done**, apart from setting the health-check path on the existing Render service, which the API tools can't change; it's a one-field change in the dashboard. **Next: Phase C** (stretch), plus the open pricing decision below.
 
 ---
 

@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import type { PricePoint } from "@/components/PriceChart";
 import { api } from "./api";
-import type { Household, MarketState, Trade } from "./types";
+import type { Household, MarketState, SimConfig, Trade } from "./types";
 
 const AUTO_PLAY_INTERVAL_MS = 1500;
 
 /** Drives the shared simulation clock (advance/auto-play) that every dashboard page reads from. */
 export function useSimulation() {
+  const [config, setConfig] = useState<SimConfig | null>(null);
   const [households, setHouseholds] = useState<Household[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [marketState, setMarketState] = useState<MarketState | null>(null);
@@ -26,6 +27,8 @@ export function useSimulation() {
         const initialHouseholds = await api.getHouseholds();
         const initialTrades = await api.getTrades();
         const initialMarketState = await api.getMarketState();
+        const initialConfig = await api.getConfig();
+        setConfig(initialConfig);
         setHouseholds(initialHouseholds);
         setTrades(initialTrades);
         setMarketState(initialMarketState);
@@ -54,6 +57,10 @@ export function useSimulation() {
         setPriceHistory((prev) => [...prev, { hour: tickResult.hour, price: matchResult.market_state.clearing_price! }]);
       }
 
+      // Re-read households: the match just booked trades against their positions.
+      const matchedHouseholds = await api.getHouseholds();
+      setHouseholds(matchedHouseholds);
+
       const tradeHistory = await api.getTrades();
       setTrades(tradeHistory);
       setError(null);
@@ -73,6 +80,7 @@ export function useSimulation() {
   }, [autoPlay]);
 
   return {
+    config,
     households,
     trades,
     marketState,

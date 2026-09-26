@@ -1,41 +1,54 @@
-from typing import List, Tuple
+from typing import List, Mapping, Optional, Tuple
 
 from backend.simulation.models import Household
 
+from .matching import Bid, Offer, match
 from .models import MarketState, Trade
 from .pricing import clearing_price
 
 
 class MarketEngine:
-    """Runs one matching cycle per call: filter sellers/buyers, pair them index-aligned, price the cycle once."""
+    """Runs one matching cycle per call: price the cycle from aggregate supply/demand,
+    greedily match sellers to buyers (see matching.match), settle every trade at that price."""
 
     def __init__(self):
         self.trades: List[Trade] = []
-        self._next_trade_id = 1
+        self._next_trade_id = 1  # display ids for the console CLI; the API uses database ids instead
 
-    def run_cycle(self, households: List[Household], hour: int) -> Tuple[MarketState, List[Trade]]:
-        sellers = sorted((h for h in households if h.net_kwh > 0), key=lambda h: h.id)
-        buyers = sorted((h for h in households if h.net_kwh < 0), key=lambda h: h.net_kwh)
+    def run_cycle(
+        self,
+        households: List[Household],
+        hour: int,
+        ask_prices: Optional[Mapping[str, float]] = None,
+    ) -> Tuple[MarketState, List[Trade]]:
+        """`ask_prices` maps seller id -> their own asking price (manual listings).
+        Sellers without one ask the clearing price. Asks only decide who sells first;
+        every trade still settles at the single clearing price."""
+        # open_net_kwh, not net_kwh: anything already sold/bought on the marketplace
+        # this hour is spoken for and must not be matched again here.
+        sellers = [h for h in households if h.open_net_kwh > 0]
+        buyers = [h for h in households if h.open_net_kwh < 0]
 
-        total_supply = round(sum(h.net_kwh for h in sellers), 3)
-        total_demand = round(sum(-h.net_kwh for h in buyers), 3)
+        total_supply = round(sum(h.open_net_kwh for h in sellers), 3)
+        total_demand = round(sum(-h.open_net_kwh for h in buyers), 3)
         price = clearing_price(total_demand, total_supply)
 
         new_trades: List[Trade] = []
         if price is not None:
-            for seller, buyer in zip(sellers, buyers):
-                amount = round(min(seller.net_kwh, -buyer.net_kwh), 3)
-                if amount <= 0:
-                    continue
-                trade = Trade(
-                    id=self._next_trade_id,
-                    seller_id=seller.id,
-                    buyer_id=buyer.id,
-                    amount_kwh=amount,
-                    price_per_kwh=price,
-                    timestamp=hour,
+            asks = ask_prices or {}
+            offers = [Offer(h.id, asks.get(h.id, price), h.open_net_kwh) for h in sellers]
+            bids = [Bid(h.id, -h.open_net_kwh) for h in buyers]
+            for pairing in match(offers, bids):
+                new_trades.append(
+                    Trade(
+                        id=self._next_trade_id,
+                        seller_id=pairing.seller_id,
+                        buyer_id=pairing.buyer_id,
+                        amount_kwh=pairing.amount_kwh,
+                        price_per_kwh=price,
+                        timestamp=hour,
+                    )
                 )
-                new_trades.append(trade)
                 self._next_trade_id += 1
 
         self.trades.extend(new_trades)

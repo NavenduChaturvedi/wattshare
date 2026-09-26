@@ -1,12 +1,13 @@
-import os
 from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.config import load_config
 from backend.market.engine import MarketEngine
 from backend.market.grid_health import compute_grid_health
+from backend.market.matching import Bid, Offer, match
 from backend.marketplace.execution import execute_trade
 from backend.marketplace.models import Listing
 from backend.marketplace.reliability import compute_reliability_score
@@ -18,6 +19,7 @@ from . import db
 from .schemas import (
     BuyerListingOut,
     BuyFromListingRequest,
+    ConfigOut,
     HouseholdOut,
     ListingCreate,
     ListingOut,
@@ -45,8 +47,7 @@ async def lifespan(app: FastAPI):
     # old trade/household rows from a previous run would no longer line up with it.
     db.reset_db()
 
-    seed_env = os.environ.get("WATTSHARE_SEED")
-    sim_engine = SimulationEngine(seed=int(seed_env) if seed_env else None)
+    sim_engine = SimulationEngine(config=load_config())
     market_engine = MarketEngine()
 
     conn = db.get_connection()
@@ -79,6 +80,28 @@ def get_db():
         conn.close()
 
 
+SOLAR_SOURCE = "Open-Meteo Historical Weather API (hourly shortwave radiation)"
+LOAD_SOURCE = "CEEW smart-meter data, Mathura, Uttar Pradesh, 2019 (CC0)"
+
+
+@app.get("/config", response_model=ConfigOut)
+def get_config():
+    """Read-only data provenance, so the dashboard can say where its numbers come from."""
+    cfg = sim_engine.config
+    real = cfg.data_source == "real"
+    return ConfigOut(
+        location=cfg.location.name,
+        latitude=cfg.location.latitude,
+        longitude=cfg.location.longitude,
+        sim_date=cfg.sim_date,
+        season=sim_engine.season if real else None,
+        data_source=cfg.data_source,
+        households=cfg.households,
+        solar_source=SOLAR_SOURCE if real else "synthetic bell curve",
+        load_source=LOAD_SOURCE if real else "synthetic morning/evening peaks",
+    )
+
+
 @app.get("/households", response_model=list[HouseholdOut])
 def get_households(conn=Depends(get_db)):
     return db.fetch_households(conn)
@@ -94,9 +117,16 @@ def simulate_tick(conn=Depends(get_db)):
 
 @app.post("/match", response_model=MatchResponse)
 def run_match(conn=Depends(get_db)):
-    state, trades = market_engine.run_cycle(sim_engine.households, sim_engine.current_hour)
+    state, trades = market_engine.run_cycle(
+        sim_engine.households, sim_engine.current_hour, ask_prices=_manual_ask_prices(conn)
+    )
     db.insert_market_state(conn, state)
-    db.insert_trades(conn, trades)
+    for trade in trades:
+        trade.id = db.insert_trade(conn, trade)
+        _settle(trade)
+    for seller_id in {t.seller_id for t in trades}:
+        _shrink_listing_to_open_surplus(conn, seller_id)
+    db.upsert_households(conn, sim_engine.households)
     conn.commit()
     return MatchResponse(
         market_state=MarketStateOut(**state.__dict__),
@@ -111,6 +141,32 @@ def get_trades(conn=Depends(get_db)):
 
 def _find_household(household_id: str):
     return next((h for h in sim_engine.households if h.id == household_id), None)
+
+
+def _manual_ask_prices(conn) -> dict:
+    """Seller id -> asking price, for sellers whose current listing sets its own price."""
+    asks = {}
+    for h in sim_engine.households:
+        if not h.has_solar:
+            continue
+        row = db.fetch_latest_listing_for_seller(conn, h.id)
+        if row and row["pricing_mode"] == "manual" and row["asking_price_per_kwh"] is not None:
+            asks[h.id] = row["asking_price_per_kwh"]
+    return asks
+
+
+def _settle(trade) -> None:
+    """Books a trade against both households' positions for this hour, so neither
+    the dispatcher nor the marketplace can trade the same kWh again."""
+    if trade.amount_kwh <= 0:
+        return
+    _find_household(trade.seller_id).record_sale(trade.amount_kwh)
+    _find_household(trade.buyer_id).record_purchase(trade.amount_kwh)
+
+
+def _open_need_kwh(household) -> float:
+    """How much this household still has to cover this hour (0 if it's in surplus or already covered)."""
+    return max(-household.open_net_kwh, 0.0)
 
 
 def _current_clearing_price(conn) -> Optional[float]:
@@ -133,7 +189,7 @@ def create_or_update_listing(payload: ListingCreate, conn=Depends(get_db)):
     listing = Listing(
         id=0,  # assigned by the database on insert
         seller_household_id=household.id,
-        units_available_kwh=max(household.net_kwh, 0.0),
+        units_available_kwh=max(household.open_net_kwh, 0.0),
         pricing_mode=payload.pricing_mode,
         asking_price_per_kwh=payload.asking_price_per_kwh if payload.pricing_mode == "manual" else None,
         created_at_tick=sim_engine.total_ticks,
@@ -193,6 +249,21 @@ def _refresh_listing_after_sale(conn, listing: Listing, remaining_kwh: float) ->
     )
 
 
+def _shrink_listing_to_open_surplus(conn, seller_id: str) -> None:
+    """After the dispatcher sells some of a seller's surplus, their listing can't
+    still advertise that energy. Re-snapshot it (same as after a marketplace sale)
+    so buyers see what's really left, and the seller isn't marked unreliable for
+    energy the dispatcher sold on their behalf."""
+    row = db.fetch_latest_listing_for_seller(conn, seller_id)
+    if row is None or row["units_available_kwh"] <= 0:
+        return
+    listing = Listing(**row)
+    seller = _find_household(seller_id)
+    remaining = round(min(listing.units_available_kwh, max(seller.open_net_kwh, 0.0)), 3)
+    if remaining < listing.units_available_kwh:
+        _refresh_listing_after_sale(conn, listing, remaining)
+
+
 @app.post("/listings/{listing_id}/buy", response_model=TradeExecutionOut)
 def buy_from_listing(listing_id: int, payload: BuyFromListingRequest, conn=Depends(get_db)):
     listing_row = db.fetch_listing_by_id(conn, listing_id)
@@ -207,24 +278,35 @@ def buy_from_listing(listing_id: int, payload: BuyFromListingRequest, conn=Depen
         raise HTTPException(status_code=400, detail="can't buy from your own listing")
     if payload.amount_kwh <= 0:
         raise HTTPException(status_code=400, detail="amount_kwh must be positive")
+    need = _open_need_kwh(buyer)
+    if need <= 0:
+        raise HTTPException(status_code=400, detail=f"{buyer.name} has no deficit to cover this hour")
+    requested = round(min(payload.amount_kwh, need), 3)
 
     seller = _find_household(listing.seller_household_id)
 
     trade, remaining = execute_trade(
         listing,
         buyer.id,
-        payload.amount_kwh,
+        requested,
         seller,
         _current_clearing_price(conn),
         sim_engine.current_hour,
         sim_engine.total_ticks,
     )
-    trade.id = db.insert_single_trade(conn, trade)
+    trade.id = db.insert_trade(conn, trade)
+    _settle(trade)
     _refresh_listing_after_sale(conn, listing, remaining)
+    db.upsert_households(conn, sim_engine.households)
     conn.commit()
 
     if trade.amount_kwh >= payload.amount_kwh - 1e-9:
         message = f"Bought {trade.amount_kwh:.2f} kWh at Rs {trade.price_per_kwh:.2f}/kWh."
+    elif trade.amount_kwh >= requested - 1e-9:
+        message = (
+            f"Bought {trade.amount_kwh:.2f} kWh -- that covers your whole deficit this hour "
+            f"(you asked for {payload.amount_kwh:.2f})."
+        )
     elif trade.fulfilled_as_listed:
         message = f"Bought {trade.amount_kwh:.2f} kWh -- that's all this listing had (you asked for {payload.amount_kwh:.2f})."
     elif trade.amount_kwh > 0:
@@ -249,33 +331,57 @@ def smart_match(payload: SmartMatchRequest, conn=Depends(get_db)):
         raise HTTPException(status_code=404, detail="buyer household not found")
     if payload.desired_kwh <= 0:
         raise HTTPException(status_code=400, detail="desired_kwh must be positive")
+    need = _open_need_kwh(buyer)
+    if need <= 0:
+        raise HTTPException(status_code=400, detail=f"{buyer.name} has no deficit to cover this hour")
+    if payload.desired_kwh > need + 1e-9:
+        raise HTTPException(
+            status_code=400, detail=f"{buyer.name} only needs {need:.2f} kWh this hour -- ask for that much or less"
+        )
 
     current_clearing_price = _current_clearing_price(conn)
 
-    # Optimal = cheapest first, same principle as the dispatcher's matching engine,
-    # applied here to one buyer's specific request rather than the whole neighborhood.
-    candidates = [
-        Listing(**row) for row in db.fetch_active_listings(conn) if row["seller_household_id"] != buyer.id
+    # Same matching algorithm as the dispatcher (matching.match), run for one buyer
+    # against the advertised listings. Listings are one per seller, so offers key by seller.
+    candidates = {
+        row["seller_household_id"]: Listing(**row)
+        for row in db.fetch_active_listings(conn)
+        if row["seller_household_id"] != buyer.id and _find_household(row["seller_household_id"]) is not None
+    }
+    offers = [
+        Offer(seller_id, effective_price(listing, current_clearing_price), listing.units_available_kwh)
+        for seller_id, listing in candidates.items()
     ]
-    candidates.sort(key=lambda listing: effective_price(listing, current_clearing_price))
 
     remaining = payload.desired_kwh
     executed: list = []
-    for listing in candidates:
-        if remaining <= 0:
+    while remaining > 0:
+        pairings = match(offers, [Bid(buyer.id, remaining)])
+        if not pairings:
             break
-        seller = _find_household(listing.seller_household_id)
-        if seller is None:
-            continue
+        # Execute only the first pairing, then re-match: if that listing turns out
+        # stale and delivers short, the shortfall rolls on to the next-cheapest seller.
+        pairing = pairings[0]
+        offers = [o for o in offers if o.household_id != pairing.seller_id]
+        listing = candidates[pairing.seller_id]
+        seller = _find_household(pairing.seller_id)
 
         trade, leftover = execute_trade(
-            listing, buyer.id, remaining, seller, current_clearing_price, sim_engine.current_hour, sim_engine.total_ticks
+            listing,
+            buyer.id,
+            pairing.amount_kwh,
+            seller,
+            current_clearing_price,
+            sim_engine.current_hour,
+            sim_engine.total_ticks,
         )
-        trade.id = db.insert_single_trade(conn, trade)
+        trade.id = db.insert_trade(conn, trade)
+        _settle(trade)
         _refresh_listing_after_sale(conn, listing, leftover)
         executed.append(trade)
         remaining = round(remaining - trade.amount_kwh, 3)
 
+    db.upsert_households(conn, sim_engine.households)
     conn.commit()
 
     total_kwh = round(sum(t.amount_kwh for t in executed), 3)

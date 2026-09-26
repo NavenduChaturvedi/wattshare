@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { SimConfig } from "@/lib/types";
 import { BoltIcon } from "./icons";
 
 const NAV_LINKS = [
@@ -10,7 +11,18 @@ const NAV_LINKS = [
   { href: "/buyer", label: "Buyer" },
 ];
 
-export function Header({ householdCount }: { householdCount: number }) {
+function provenanceLine(config: SimConfig | null): string {
+  if (!config) return "Neighborhood dispatcher";
+  if (config.data_source === "synthetic") return "Synthetic data";
+  const day = new Date(`${config.sim_date}T00:00:00`).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  return `${config.location} · ${day} · real weather & load data`;
+}
+
+export function Header({ householdCount, config }: { householdCount: number; config: SimConfig | null }) {
   const pathname = usePathname();
 
   return (
@@ -26,8 +38,13 @@ export function Header({ householdCount }: { householdCount: number }) {
           <h1 className="text-lg font-semibold leading-tight" style={{ color: "var(--ink)" }}>
             WattShare
           </h1>
-          <p className="text-xs" style={{ color: "var(--ink-muted)" }}>
-            Neighborhood dispatcher
+          <p
+            className="text-xs"
+            style={{ color: "var(--ink-muted)" }}
+            title={config ? `Solar: ${config.solar_source}
+Load: ${config.load_source}` : undefined}
+          >
+            {provenanceLine(config)}
           </p>
         </div>
       </div>

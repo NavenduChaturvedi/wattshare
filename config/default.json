@@ -1,0 +1,14 @@
+{
+  "location": {
+    "name": "Lucknow",
+    "latitude": 26.85,
+    "longitude": 80.95,
+    "timezone": "Asia/Kolkata"
+  },
+  "sim_date": "2019-05-29",
+  "data_source": "real",
+  "households": "demo",
+  "n_households": 10,
+  "solar_ratio": 0.4,
+  "seed": null
+}

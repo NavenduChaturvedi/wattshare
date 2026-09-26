@@ -13,24 +13,43 @@ This is a portfolio project demonstrating system design, algorithmic thinking
 
 ## How it works
 
-**1. Household simulation.** 10 households, 4 with rooftop solar and 6 pure
-consumers. Each simulated hour, solar generation follows a bell curve peaking
-near noon (with occasional random "cloud" dips), and consumption follows
-morning and evening peaks -- both with a bit of random noise layered on top so
-the neighborhood feels organic rather than mechanical.
+**1. Household simulation, driven by real data.** By default there are 10
+households, 4 with rooftop solar and 6 pure consumers, in Lucknow on
+29 May 2019. Each simulated hour:
+- solar generation comes from that day's **measured irradiance**
+  ([Open-Meteo](https://open-meteo.com/en/docs/historical-weather-api)) run
+  through a simple panel model;
+- consumption follows **real smart-meter load profiles** from 38 households in
+  Mathura, UP ([CEEW, CC0](https://doi.org/10.7910/DVN/GOCHJH)), for that
+  season and household size, with a little per-home variation.
+
+Every simulated day replays the configured real day. Location, date, household
+count and solar ratio all live in `config/default.json`. See
+[`backend/data/SOURCES.md`](backend/data/SOURCES.md) for sources, method and
+caveats. The original synthetic curves are still available with
+`"data_source": "synthetic"`.
 
 **2. Matching.** Every cycle:
 1. Households are split into sellers (generation > consumption this hour) and
    buyers (consumption > generation).
-2. Sellers are sorted by ask price ascending (everyone shares the same base
-   ask in v1); buyers are sorted by need (deficit) descending.
-3. The two lists are walked top-down and paired index-for-index -- seller `i`
-   trades with buyer `i` for `min(seller's surplus, buyer's deficit)` kWh --
-   stopping as soon as either list runs out.
+2. Sellers are sorted by ask price ascending (a seller's own price if their
+   listing sets one, otherwise the cycle's clearing price); buyers are sorted
+   by need (deficit) descending. Ties break by household id, so the same
+   inputs always produce the same trades.
+3. A greedy two-pointer walk pairs the cheapest seller with the neediest
+   buyer for `min(seller's remaining surplus, buyer's remaining deficit)` kWh.
+   Whichever side runs dry moves on to its next household, until either list
+   is exhausted -- so one big seller can serve several buyers, and one big
+   buyer can draw from several sellers.
 
-This is deliberately simple (no auction, no partial re-matching of leftover
-surplus/deficit) -- it's meant to be an explainable v1, not a clearing-price
-auction engine.
+This is deliberately simple (no auction, no bid prices) -- an explainable v1,
+not a clearing-price auction engine. The matcher is a pure function
+(`backend/market/matching.py`), and Smart Match on the buyer dashboard runs
+the same function for a single buyer.
+
+Energy traded in an hour -- by the dispatcher or on the marketplace -- is
+booked against both households, so the same kWh is never sold twice and a
+household can only buy up to its own deficit.
 
 **3. Pricing.** Once per cycle, from the *aggregate* supply and demand (not
 per trade):
@@ -80,14 +99,24 @@ This was built in five phases, and each phase's entry point still works
 standalone:
 
 ```
+config/default.json     location, sim date, data source, household preset
+
 backend/
-  simulation/          Phase 1 -- household generation/consumption curves
-    curves.py
+  config.py             loads + validates the config (env overrides on top)
+  data/                 real-data layer
+    solar.py             Open-Meteo irradiance -> kWh (cached; fixture days committed)
+    load.py              CEEW-derived hourly load profiles
+    load_profiles.csv    the derived profiles (rebuild: build_load_profiles.py)
+    SOURCES.md           provenance, licences, method
+  simulation/          Phase 1 -- the neighbourhood, hour by hour
+    households.py        demo preset + config-generated households
+    curves.py            synthetic curves (data_source: "synthetic")
     engine.py
     models.py
   run_simulation.py     Phase 1 CLI -- prints a full simulated day to console
 
   market/               Phase 2 -- matching engine + dynamic pricing
+    matching.py          pure greedy matcher (shared by dispatcher + Smart Match)
     pricing.py
     engine.py
     models.py
@@ -97,8 +126,11 @@ backend/
     app.py               routes
     db.py                SQLite schema + queries (raw sqlite3, no ORM)
     schemas.py           Pydantic response models
+  marketplace/          listings, trade execution, reliability, seller stats
+  tests/                pytest suite (unit + API smoke tests)
   display.py             shared console table printer (Phases 1 & 2)
   requirements.txt
+  requirements-dev.txt   + pytest, httpx2
 
 frontend/               Phase 4 -- Next.js dashboard
   src/
@@ -121,6 +153,8 @@ Phase 1 -- household simulation only (console):
 ```bash
 python -m backend.run_simulation --seed 42   # --seed is optional; omit for fresh randomness each run
 ```
+Both CLIs also take `--config path.json` and `--step` (press Enter to advance
+hour by hour).
 
 Phase 2 -- adds matching + pricing (console):
 ```bash
@@ -133,8 +167,22 @@ uvicorn backend.api.app:app --port 8000
 ```
 Interactive API docs: http://127.0.0.1:8000/docs
 
-An optional `WATTSHARE_SEED` env var seeds the API's simulation the same way
-`--seed` does for the CLIs, for reproducible testing.
+Environment overrides for the API:
+- `WATTSHARE_CONFIG`: path to a config JSON (default `config/default.json`).
+- `WATTSHARE_SEED`: seeds the simulation, the same as `--seed` for the CLIs.
+- `WATTSHARE_DATA_SOURCE`: `real` or `synthetic`.
+- `WATTSHARE_SIM_DATE`: e.g. `2019-07-11` for the cloudy monsoon fixture.
+- `WATTSHARE_DB_PATH`: where the SQLite file lives (default `backend/wattshare.db`).
+
+### Tests
+
+```bash
+pip install -r backend/requirements-dev.txt
+pytest
+```
+
+GitHub Actions (`.github/workflows/ci.yml`) runs the backend suite on Python
+3.11 and 3.12, and lints + builds the frontend, on every push.
 
 ### Frontend
 
@@ -158,6 +206,13 @@ let it run continuously.
 | `/match` | POST | Run one matching cycle at the current hour |
 | `/trades` | GET | Full trade history |
 | `/market-state` | GET | Latest clearing price / supply / demand snapshot |
+| `/market/summary` | GET | Current price, listing average/best, grid health, price trend |
+| `/config` | GET | Data provenance: location, date, season, sources |
+| `/listings` | POST / GET | Seller creates/updates a listing / active listings for buyers |
+| `/listings/{seller_id}` | GET | A seller's current listing |
+| `/listings/{id}/buy` | POST | Buy from one listing (capped at the buyer's deficit) |
+| `/match/smart` | POST | Buyer-initiated match for a desired kWh |
+| `/sellers/{id}/stats` | GET | Reliability + earnings |
 
 The database resets on every server start, so the in-memory simulation clock
 and the persisted trade history always stay consistent with each other.
@@ -181,7 +236,8 @@ frontend can point at any backend URL without extra configuration.
 ## Non-goals
 
 Deliberately out of scope for this project:
-- No real hardware/IoT -- all household data is simulated.
+- No real hardware/IoT -- households are simulated at the platform level,
+  from real-sourced weather and load data.
 - No real blockchain/smart contracts -- the trade ledger is a plain SQLite
   table.
 - No user accounts -- single shared simulation view.

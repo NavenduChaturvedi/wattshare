@@ -82,7 +82,10 @@ export default function SellerPage() {
   }, [sellerId, sim.hour]);
 
   const me = sim.households.find((h) => h.id === sellerId) ?? null;
-  const currentSurplusKwh = me ? Math.max(me.current_generation_kwh - me.current_consumption_kwh, 0) : 0;
+  // What's still unsold this hour -- the dispatcher may already have sold some of it.
+  const currentSurplusKwh = me
+    ? Math.max(me.current_generation_kwh - me.current_consumption_kwh - me.traded_kwh, 0)
+    : 0;
   const defaultPrice = sim.marketState?.clearing_price ?? BASE_PRICE_FALLBACK;
 
   return (
@@ -91,7 +94,7 @@ export default function SellerPage() {
         className="mx-auto flex w-full max-w-6xl flex-col gap-4 rounded-[32px] p-4 sm:p-6"
         style={{ background: "var(--panel-bg)" }}
       >
-        <Header householdCount={sim.households.length} />
+        <Header householdCount={sim.households.length} config={sim.config} />
 
         <Hero
           hour={sim.hour}

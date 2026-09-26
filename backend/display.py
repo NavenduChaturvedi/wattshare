@@ -1,4 +1,32 @@
+import argparse
+
+from backend.config import load_config
 from backend.simulation.engine import SimulationEngine
+
+
+def add_common_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--config", default=None, help="Path to a config JSON (default: config/default.json)")
+    parser.add_argument("--step", action="store_true", help="Pause after each hour; press Enter to advance")
+
+
+def build_engine(args: argparse.Namespace) -> SimulationEngine:
+    return SimulationEngine(seed=args.seed, config=load_config(args.config))
+
+
+def print_provenance(engine: SimulationEngine) -> None:
+    cfg = engine.config
+    if cfg.data_source == "real":
+        print(f"Real data: {cfg.location.name} on {cfg.sim_date} ({engine.season}) -- Open-Meteo irradiance, CEEW load profiles")
+    else:
+        print("Synthetic data: made-up solar and load curves")
+
+
+def wait_for_step(args: argparse.Namespace) -> None:
+    if args.step:
+        try:
+            input("-- Enter for the next hour --")
+        except EOFError:  # stdin closed (piped/CI): finish the day without pausing
+            args.step = False
 
 
 def print_household_snapshot(engine: SimulationEngine) -> None:

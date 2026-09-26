@@ -6,6 +6,19 @@ export interface Household {
   current_generation_kwh: number;
   current_consumption_kwh: number;
   battery_stored_kwh: number;
+  traded_kwh: number; // already traded this hour: + sold, - bought
+}
+
+export interface SimConfig {
+  location: string;
+  latitude: number;
+  longitude: number;
+  sim_date: string; // ISO date
+  season: string | null;
+  data_source: "real" | "synthetic";
+  households: "demo" | "generated";
+  solar_source: string;
+  load_source: string;
 }
 
 export interface Trade {

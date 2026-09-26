@@ -1,6 +1,19 @@
+from datetime import date
 from typing import List, Literal, Optional
 
 from pydantic import BaseModel
+
+
+class ConfigOut(BaseModel):
+    location: str
+    latitude: float
+    longitude: float
+    sim_date: date
+    season: Optional[str] = None  # None in synthetic mode
+    data_source: Literal["real", "synthetic"]
+    households: Literal["demo", "generated"]
+    solar_source: str
+    load_source: str
 
 
 class HouseholdOut(BaseModel):
@@ -11,6 +24,7 @@ class HouseholdOut(BaseModel):
     current_generation_kwh: float
     current_consumption_kwh: float
     battery_stored_kwh: float
+    traded_kwh: float  # already traded this hour: + sold, - bought
 
 
 class TradeOut(BaseModel):

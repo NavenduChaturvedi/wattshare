@@ -82,7 +82,7 @@ export default function BuyerPage() {
         className="mx-auto flex w-full max-w-6xl flex-col gap-4 rounded-[32px] p-4 sm:p-6"
         style={{ background: "var(--panel-bg)" }}
       >
-        <Header householdCount={sim.households.length} />
+        <Header householdCount={sim.households.length} config={sim.config} />
 
         <Hero
           hour={sim.hour}

@@ -9,8 +9,9 @@ from .summary import effective_price
 
 def resolve_deliverable(listing: Listing, seller_household: Household) -> float:
     """What the seller can actually hand over right now, which may be less than
-    what the listing promised if their surplus has moved on since it was snapshotted."""
-    actual_surplus = max(seller_household.net_kwh, 0.0)
+    what the listing promised if their surplus has moved on since it was snapshotted
+    (or was already sold this hour, by the dispatcher or another buyer)."""
+    actual_surplus = max(seller_household.open_net_kwh, 0.0)
     return round(max(min(listing.units_available_kwh, actual_surplus), 0.0), 3)
 
 

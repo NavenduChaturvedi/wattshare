@@ -5,6 +5,7 @@ import type {
   Listing,
   MarketState,
   MarketSummary,
+  PurchaseQuote,
   MatchResponse,
   PricingMode,
   SellerStats,
@@ -54,11 +55,21 @@ export const api = {
   getSellerStats: (sellerId: string) => request<SellerStats>(`/sellers/${sellerId}/stats`),
   getMarketSummary: () => request<MarketSummary>("/market/summary"),
 
-  buyFromListing: (listingId: number, buyerId: string, amountKwh: number) =>
+  getQuote: (listingId: number, buyerId: string, amountKwh?: number) => {
+    const params = new URLSearchParams({ buyer_household_id: buyerId });
+    if (amountKwh !== undefined) params.set("amount_kwh", String(amountKwh));
+    return request<PurchaseQuote>(`/listings/${listingId}/quote?${params}`);
+  },
+  /** maxPricePerKwh: the price the buyer confirmed -- the server refuses (409) if it has since risen. */
+  buyFromListing: (listingId: number, buyerId: string, amountKwh: number, maxPricePerKwh?: number) =>
     request<TradeExecutionResult>(`/listings/${listingId}/buy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ buyer_household_id: buyerId, amount_kwh: amountKwh }),
+      body: JSON.stringify({
+        buyer_household_id: buyerId,
+        amount_kwh: amountKwh,
+        max_price_per_kwh: maxPricePerKwh ?? null,
+      }),
     }),
   smartMatch: (buyerId: string, desiredKwh: number) =>
     request<SmartMatchResult>("/match/smart", {

@@ -64,11 +64,10 @@ export default function BuyerPage() {
       ? shoppableListings.reduce((best, l) => (l.reliability_score > best.reliability_score ? l : best))
       : null;
 
-  async function handleBuy(listing: BuyerListing) {
+  async function handleBuy(listing: BuyerListing, amountKwh: number, maxPricePerKwh: number) {
     if (!buyerId) return { message: "Select a household first.", success: false };
     try {
-      const amount = Math.min(listing.units_available_kwh, myNeedKwh);
-      const result = await api.buyFromListing(listing.id, buyerId, amount);
+      const result = await api.buyFromListing(listing.id, buyerId, amountKwh, maxPricePerKwh);
       await sim.refreshHouseholds();
       await loadMarketData();
       return { message: result.message, success: result.trade.amount_kwh > 0 };
@@ -136,7 +135,14 @@ export default function BuyerPage() {
           />
         </div>
 
-        <ListingTable listings={shoppableListings} myZoneId={myZoneId} myNeedKwh={myNeedKwh} onBuy={handleBuy} />
+        <ListingTable
+          listings={shoppableListings}
+          myZoneId={myZoneId}
+          myNeedKwh={myNeedKwh}
+          buyerId={buyerId}
+          buyerName={me?.name ?? ""}
+          onBuy={handleBuy}
+        />
       </div>
     </div>
   );

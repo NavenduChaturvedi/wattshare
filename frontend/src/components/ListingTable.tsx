@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import type { BuyerListing } from "@/lib/types";
+import { BuyDialog, type PurchaseResult } from "./BuyDialog";
 import { Card } from "./Card";
 import { TagIcon } from "./icons";
 
 function ProximityChip({ sameZone }: { sameZone: boolean }) {
   return (
     <span
-      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
+      className="inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium"
       style={
         sameZone
           ? { background: "var(--status-good-soft)", color: "var(--status-good)" }
@@ -35,37 +36,38 @@ function ReliabilityChip({ score }: { score: number }) {
   );
 }
 
-interface RowResult {
-  message: string;
-  success: boolean;
-}
-
 export function ListingTable({
   listings,
   myZoneId,
   myNeedKwh,
+  buyerId,
+  buyerName,
   onBuy,
 }: {
   listings: BuyerListing[];
   myZoneId: string | null;
   myNeedKwh: number;
-  onBuy: (listing: BuyerListing) => Promise<RowResult>;
+  buyerId: string | null;
+  buyerName: string;
+  onBuy: (listing: BuyerListing, amountKwh: number, maxPricePerKwh: number) => Promise<PurchaseResult>;
 }) {
   // Keyed by seller, not listing id: every sale re-snapshots the listing under a new id,
   // so an id-keyed result would vanish the moment the table reloads after the purchase.
-  const [loadingSeller, setLoadingSeller] = useState<string | null>(null);
-  const [results, setResults] = useState<Record<string, RowResult>>({});
+  const [results, setResults] = useState<Record<string, PurchaseResult>>({});
+  const [buying, setBuying] = useState<BuyerListing | null>(null);
 
-  async function handleBuy(listing: BuyerListing) {
-    setLoadingSeller(listing.seller_household_id);
+  function openDialog(listing: BuyerListing) {
     setResults((prev) => {
       const next = { ...prev };
       delete next[listing.seller_household_id];
       return next;
     });
-    const result = await onBuy(listing);
-    setResults((prev) => ({ ...prev, [listing.seller_household_id]: result }));
-    setLoadingSeller(null);
+    setBuying(listing);
+  }
+
+  function closeDialog(result?: PurchaseResult) {
+    if (buying && result) setResults((prev) => ({ ...prev, [buying.seller_household_id]: result }));
+    setBuying(null);
   }
 
   return (
@@ -96,24 +98,20 @@ export function ListingTable({
                   <td className="py-2">
                     <ProximityChip sameZone={l.zone_id === myZoneId} />
                   </td>
-                  <td className="py-2 pr-2 text-right">{l.units_available_kwh.toFixed(2)} kWh</td>
-                  <td className="py-2 pr-2 text-right font-medium">Rs {l.price_per_kwh.toFixed(2)}</td>
+                  <td className="whitespace-nowrap py-2 pr-2 text-right">{l.units_available_kwh.toFixed(2)} kWh</td>
+                  <td className="whitespace-nowrap py-2 pr-2 text-right font-medium">Rs {l.price_per_kwh.toFixed(2)}</td>
                   <td className="py-2 pr-2 text-right">
                     <ReliabilityChip score={l.reliability_score} />
                   </td>
                   <td className="py-2 text-right align-top">
                     <button
-                      onClick={() => handleBuy(l)}
-                      disabled={loadingSeller === l.seller_household_id || myNeedKwh <= 0}
+                      onClick={() => openDialog(l)}
+                      disabled={!buyerId || myNeedKwh <= 0}
                       title={myNeedKwh <= 0 ? "This household has no deficit to cover this hour" : undefined}
                       className="rounded-full px-3 py-1 text-xs font-medium disabled:opacity-50"
                       style={{ background: "var(--strong)", color: "var(--strong-contrast)" }}
                     >
-                      {loadingSeller === l.seller_household_id
-                        ? "Buying..."
-                        : myNeedKwh <= 0
-                          ? "Nothing needed"
-                          : `Buy ${Math.min(l.units_available_kwh, myNeedKwh).toFixed(2)} kWh`}
+                      {myNeedKwh <= 0 ? "Nothing needed" : "Buy..."}
                     </button>
                     {results[l.seller_household_id] && (
                       <p
@@ -142,6 +140,16 @@ export function ListingTable({
             {r.message}
           </p>
         ))}
+      {buying && buyerId && (
+        <BuyDialog
+          key={buying.id}
+          listing={buying}
+          buyerId={buyerId}
+          buyerName={buyerName}
+          onConfirm={(amount, maxPrice) => onBuy(buying, amount, maxPrice)}
+          onClose={closeDialog}
+        />
+      )}
     </Card>
   );
 }

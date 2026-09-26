@@ -47,6 +47,12 @@
 >
 > **All planned phases (A–C) are done.**
 >
+> **Buying options: choose your amount (2026-09-26).**
+> - `GET /listings/{id}/quote` is a read-only preview built on `marketplace/quote.py`, which the purchase itself also uses.
+> - `POST /listings/{id}/buy` accepts a `max_price_per_kwh` guard and returns 409 if the price has risen, without writing anything.
+> - The buyer page has a purchase dialog: an amount input, a slider, 25% / 50% / Max, a live server-priced preview, a stale-listing warning, and a confirm button showing the exact amount and cost.
+> - Tests: 10 new pytest cases, including that the quote equals the executed trade and that the price guard writes nothing, plus a 13-check browser run.
+>
 > **Pricing decision resolved (2026-09-26):** an oversupplied market now prices below base.
 > - The formula is `base + α·(D/S − 1)`: balanced clears at ₹6, and the midday glut clears at about ₹4.5–5 instead of ₹6.5.
 > - The battery threshold was retuned from ₹8 to ₹6.5 ("store while in surplus"). At ₹8, under the new prices, the batteries charged from 07:00 and missed the start of the evening.

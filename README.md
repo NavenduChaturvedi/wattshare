@@ -16,6 +16,16 @@ can take up to a minute while the server wakes up.
 |---|---|---|
 | ![Dispatcher view](docs/screenshots/dispatcher.png) | ![Seller view](docs/screenshots/seller.png) | ![Buyer view](docs/screenshots/buyer.png) |
 
+**Buying from a listing:**
+- Choose how much to buy (type it, use the slider, or pick 25% / 50% / Max)
+  and see the server-computed cost before confirming.
+- The preview applies the same caps as the purchase: your remaining need,
+  and what the seller can actually deliver.
+- The confirmed price travels with the order, so if the price rises before
+  you confirm, nothing is bought.
+
+![Buy dialog](docs/screenshots/buy-dialog.png)
+
 This is a portfolio project demonstrating system design, algorithmic thinking
 (matching + dynamic pricing), and full-stack delivery. All data is simulated
 -- there's no real hardware, blockchain, or payment processing involved (see
@@ -268,7 +278,8 @@ Open http://localhost:3000 with the backend running. Each simulated hour runs in
 | `/config` | GET | Data provenance: location, date, season, sources |
 | `/listings` | POST / GET | Seller creates/updates a listing / active listings for buyers |
 | `/listings/{seller_id}` | GET | A seller's current listing |
-| `/listings/{id}/buy` | POST | Buy from one listing (capped at the buyer's deficit) |
+| `/listings/{id}/quote` | GET | Read-only preview: capped amount, price and total for `buyer_household_id` + `amount_kwh` |
+| `/listings/{id}/buy` | POST | Buy from one listing (capped at the buyer's deficit). An optional `max_price_per_kwh` guard returns 409 if the price has risen |
 | `/match/smart` | POST | Buyer-initiated match for a desired kWh |
 | `/sellers/{id}/stats` | GET | Reliability + earnings |
 

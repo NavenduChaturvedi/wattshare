@@ -12,6 +12,7 @@ from backend.market.ledger import verify_chain
 from backend.market.matching import Bid, Offer, match
 from backend.marketplace.execution import execute_trade
 from backend.marketplace.models import Listing
+from backend.marketplace.quote import build_quote
 from backend.marketplace.reliability import compute_reliability_score
 from backend.marketplace.stats import compute_seller_stats
 from backend.marketplace.summary import compute_listing_price_stats, effective_price
@@ -29,6 +30,7 @@ from .schemas import (
     MarketStateOut,
     MarketSummaryOut,
     MatchResponse,
+    PurchaseQuoteOut,
     PricePointOut,
     SellerStatsOut,
     SimulationStatusOut,
@@ -291,33 +293,64 @@ def _shrink_listing_to_open_surplus(conn, seller_id: str) -> None:
         _refresh_listing_after_sale(conn, listing, remaining)
 
 
-@app.post("/listings/{listing_id}/buy", response_model=TradeExecutionOut)
-def buy_from_listing(listing_id: int, payload: BuyFromListingRequest, conn=Depends(get_db)):
+def _load_purchase(conn, listing_id: int, buyer_household_id: str):
+    """The listing, buyer and seller for a purchase or quote, or the HTTP error explaining why not."""
     listing_row = db.fetch_listing_by_id(conn, listing_id)
     if listing_row is None:
         raise HTTPException(status_code=404, detail="listing not found")
     listing = Listing(**listing_row)
 
-    buyer = _find_household(payload.buyer_household_id)
+    buyer = _find_household(buyer_household_id)
     if buyer is None:
         raise HTTPException(status_code=404, detail="buyer household not found")
     if buyer.id == listing.seller_household_id:
         raise HTTPException(status_code=400, detail="can't buy from your own listing")
+    return listing, buyer, _find_household(listing.seller_household_id)
+
+
+@app.get("/listings/{listing_id}/quote", response_model=PurchaseQuoteOut)
+def quote_listing(
+    listing_id: int,
+    buyer_household_id: str,
+    amount_kwh: Optional[float] = None,
+    conn=Depends(get_db),
+):
+    """Read-only preview of buying `amount_kwh` (default: as much as possible) from a
+    listing: the capped amount, price and total the purchase would actually produce."""
+    listing, buyer, seller = _load_purchase(conn, listing_id, buyer_household_id)
+    if amount_kwh is not None and amount_kwh < 0:
+        raise HTTPException(status_code=400, detail="amount_kwh can't be negative")
+    quote = build_quote(listing, seller, _open_need_kwh(buyer), amount_kwh, _current_clearing_price(conn))
+    return PurchaseQuoteOut(**quote.__dict__)
+
+
+@app.post("/listings/{listing_id}/buy", response_model=TradeExecutionOut)
+def buy_from_listing(listing_id: int, payload: BuyFromListingRequest, conn=Depends(get_db)):
+    listing, buyer, seller = _load_purchase(conn, listing_id, payload.buyer_household_id)
     if payload.amount_kwh <= 0:
         raise HTTPException(status_code=400, detail="amount_kwh must be positive")
     need = _open_need_kwh(buyer)
     if need <= 0:
         raise HTTPException(status_code=400, detail=f"{buyer.name} has no deficit to cover this hour")
-    requested = round(min(payload.amount_kwh, need), 3)
 
-    seller = _find_household(listing.seller_household_id)
+    current_clearing_price = _current_clearing_price(conn)
+    price = effective_price(listing, current_clearing_price)
+    if payload.max_price_per_kwh is not None and price > payload.max_price_per_kwh + 1e-9:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"The price moved to Rs {price:.2f}/kWh (you confirmed Rs {payload.max_price_per_kwh:.2f}). "
+                "Nothing was bought -- review the new price and try again."
+            ),
+        )
+    requested = round(min(payload.amount_kwh, need), 3)
 
     trade, remaining = execute_trade(
         listing,
         buyer.id,
         requested,
         seller,
-        _current_clearing_price(conn),
+        current_clearing_price,
         sim_engine.current_hour,
         sim_engine.total_ticks,
     )

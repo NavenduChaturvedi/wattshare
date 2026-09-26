@@ -127,6 +127,24 @@ class MarketSummaryOut(BaseModel):
 class BuyFromListingRequest(BaseModel):
     buyer_household_id: str
     amount_kwh: float
+    # Price guard: the Rs/kWh the buyer confirmed. If the effective price has since
+    # risen above it (e.g. the hour advanced in another tab), the purchase is refused
+    # rather than charging more than the buyer agreed to.
+    max_price_per_kwh: Optional[float] = None
+
+
+class PurchaseQuoteOut(BaseModel):
+    listing_id: int
+    seller_household_id: str
+    price_per_kwh: float
+    advertised_kwh: float
+    deliverable_kwh: float
+    buyer_need_kwh: float
+    max_kwh: float
+    requested_kwh: float
+    amount_kwh: float
+    total_cost: float
+    stale: bool
 
 
 class TradeExecutionOut(BaseModel):

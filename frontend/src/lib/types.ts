@@ -111,6 +111,21 @@ export interface MarketSummary {
   price_trend: MarketTrendPoint[];
 }
 
+/** GET /listings/{id}/quote -- what a purchase would actually do right now. */
+export interface PurchaseQuote {
+  listing_id: number;
+  seller_household_id: string;
+  price_per_kwh: number;
+  advertised_kwh: number;
+  deliverable_kwh: number; // what the seller can hand over right now
+  buyer_need_kwh: number;
+  max_kwh: number; // min(deliverable, need)
+  requested_kwh: number;
+  amount_kwh: number; // requested, capped at max_kwh
+  total_cost: number;
+  stale: boolean; // seller can't deliver everything the listing advertises
+}
+
 export interface TradeExecutionResult {
   trade: Trade;
   fulfilled_as_listed: boolean;

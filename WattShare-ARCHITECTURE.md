@@ -78,9 +78,11 @@
 ## Pricing Formula (v1)
 
 ```
-clearing_price = base_price + alpha * (total_demand_kwh / total_supply_kwh)
+clearing_price = base_price + alpha * (total_demand_kwh / total_supply_kwh - 1)
+               + beta * (transformer_import / transformer_capacity)^2
 clamped between price_min and price_max
 ```
+*Revised 2026-09-26:* the formula is centred on balance (demand = supply → base_price), so a surplus prices below base. The original `base + α·(D/S)` could never go below ₹6, which left the ₹4 floor unreachable. The β transformer term (stretch) is implemented and applies on import only.
 Placeholder constants: base_price ≈ ₹6/kWh, alpha ≈ 2, price_min ≈ ₹4, price_max ≈ ₹12 — plausible and explainable, not claimed to be economically rigorous.
 
 **Reliability score:** `trades_fulfilled_as_listed / total_trades_attempted`, rolling window (last 20 trades or 7 sim-days). New sellers default to a neutral 0.85 until 5+ trades of history exist.

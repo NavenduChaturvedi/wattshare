@@ -33,7 +33,7 @@ def test_manual_asks_decide_who_sells_first():
 
 
 def test_auto_sellers_ask_the_clearing_price():
-    # S2 asks above the clearing price (6 + 2*(2/4) = 7), so auto-priced S1 goes first.
+    # S2 asks above the clearing price (6 + 2*(2/4 - 1) = 5), so auto-priced S1 goes first.
     hh = [household("S1", gen=3.0, cons=1.0), household("S2", gen=3.0, cons=1.0), household("B1", cons=2.0)]
     _, trades = MarketEngine().run_cycle(hh, hour=12, ask_prices={"S2": 9.0})
     assert [t.seller_id for t in trades] == ["S1"]
@@ -54,8 +54,8 @@ def test_transformer_carries_the_net_import():
     state, _ = MarketEngine().run_cycle(hh, hour=17, transformer_capacity_kw=4.0)
     assert state.transformer_load_kw == pytest.approx(2.0)
     assert state.transformer_load_pct == pytest.approx(50.0)
-    # Congestion premium: 6 + 2*(5/3) + 4*(2/4)^2 = 10.33
-    assert state.clearing_price == pytest.approx(10.33)
+    # Congestion premium: 6 + 2*(5/3 - 1) + 4*(2/4)^2 = 8.33
+    assert state.clearing_price == pytest.approx(8.33)
 
 
 def test_midday_export_is_reverse_flow_with_no_premium():

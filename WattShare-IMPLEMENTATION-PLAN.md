@@ -37,7 +37,7 @@
 > - Tests cover editing, deleting and re-hashing forged rows, plus tampering with the database directly underneath the API.
 >
 > **Phase C2 is done (battery storage):**
-> - The policy is the plan's price-threshold rule (store below ₹8, release at or above it, or when there was no local supply last hour).
+> - The policy is the plan's price-threshold rule (store below the threshold, release at or above it, or when there was no local supply last hour). The threshold is now ₹6.5, after the pricing change below.
 > - Hysteresis was added after the first version oscillated: its own sales pulled the price under the threshold, so it idled in alternate hours through the evening.
 > - The 1.5 kW release rate was chosen by comparison. At 2.5 kW, two batteries dumped 5 kWh in one hour and exported the excess.
 > - `net_kwh` includes battery flow, so the market, the double-selling protection and the transformer load follow automatically.
@@ -45,7 +45,11 @@
 > - Result: evening transformer load drops from 21–34% to 4–9%, and local trade rises by about 7.6 kWh/day. The 68% overnight peak doesn't move (storage is far smaller than the night AC load).
 > - Also fixed along the way: the buyer's Buy button now offers only what the buyer needs, and purchase confirmations now show. They had been keyed by listing id, which changes on every sale, so they never rendered.
 >
-> **All planned phases (A–C) are done.** Still open: whether an oversupplied market should price below ₹6 (see below).
+> **All planned phases (A–C) are done.**
+>
+> **Pricing decision resolved (2026-09-26):** an oversupplied market now prices below base.
+> - The formula is `base + α·(D/S − 1)`: balanced clears at ₹6, and the midday glut clears at about ₹4.5–5 instead of ₹6.5.
+> - The battery threshold was retuned from ₹8 to ₹6.5 ("store while in surplus"). At ₹8, under the new prices, the batteries charged from 07:00 and missed the start of the evening.
 
 ---
 
@@ -202,7 +206,7 @@ That lands a complete, deployed, real-data v1 at roughly **2 months**, well insi
 | Matching rewrite changes numbers the dashboards display | Phase A0 API smoke tests catch contract breaks; the response schemas stay the same |
 | Render free tier cold starts hurt the demo | A loading state in the frontend; mention it in the README |
 
-**Open decision from A2.5:** should an oversupplied market price below `base`? For example, `price = base · (D/S)^γ` clamped to the band, or `base + α·(D/S − 1)`. Either would make the ₹4 floor reachable and midday solar noticeably cheap.
+**Decision from A2.5 (resolved 2026-09-26 in favour of `base + α·(D/S − 1)`):** should an oversupplied market price below `base`? For example, `price = base · (D/S)^γ` clamped to the band, or `base + α·(D/S − 1)`. Either would make the ₹4 floor reachable and midday solar noticeably cheap.
 
 **Decisions to confirm before starting A2** (resolved, see Progress):
 1. Config format: YAML (needs `pyyaml`) or JSON (no new dependency).

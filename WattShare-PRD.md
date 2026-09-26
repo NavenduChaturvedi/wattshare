@@ -41,7 +41,7 @@ WattShare is a peer-to-peer solar energy trading simulator and dispatcher: neigh
 ### MVP
 1. Household simulation using real consumption profiles + real solar irradiance data
 2. Greedy matching engine (sellers sorted cheap→expensive, buyers by need, matched top-down)
-3. Dynamic pricing: `price = base + α * (demand/supply)`, clamped min/max
+3. Dynamic pricing: `price = base + α * (demand/supply − 1)`, clamped min/max. Balanced → base; surplus → cheaper (revised 2026-09-26 so the price floor is reachable)
 4. FastAPI backend exposing household state, matching cycles, trade history
 5. Seller Dashboard: surplus available, pricing mode (auto/manual), earnings summary, reliability score, lifetime impact stat
 6. Buyer Dashboard: listing table (units, price, zone proximity, reliability), best-price/most-reliable highlights, Smart Match button, grid health indicator, price trend sparkline

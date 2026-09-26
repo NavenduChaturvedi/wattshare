@@ -65,10 +65,15 @@ household can only buy up to its own deficit.
 per trade):
 
 ```
-clearing_price = base_price + alpha * (total_demand_kwh / total_supply_kwh)
+clearing_price = base_price + alpha * (total_demand_kwh / total_supply_kwh - 1)
                             + beta  * (transformer_import / transformer_capacity)^2
 clamped to [price_min, price_max]
 ```
+
+The formula is centred on balance: when demand equals supply, the market
+clears at `base_price`. Surplus pushes the price below that, and scarcity
+pushes it above. On the default day, midday solar clears at about ₹4.5–5,
+while the dawn and dusk shoulders reach ₹7.75–12.
 
 The constants are `base_price = 6`, `alpha = 2`, `beta = 4`, `price_min = 4`
 and `price_max = 12` (Rs/kWh). They're placeholders chosen to be plausible and
@@ -94,11 +99,13 @@ On the default real day, the transformer runs at 55–70% importing overnight
 **5. Home batteries.** By default, half the solar homes (the biggest arrays)
 have a 5 kWh battery that releases at up to 1.5 kW. It runs a simple
 price-threshold rule, driven by the price the previous hour cleared at:
-- **Below ₹8, with the sun up:** store the home's surplus instead of selling it.
-- **₹8 or above, or no local supply last hour:** release. The battery covers
+- **Below ₹6.5, with the sun up:** store the home's surplus instead of selling it.
+  ₹6.5 sits just above the balanced-market price, so this means "while the
+  market is in surplus".
+- **₹6.5 or above, or no local supply last hour:** release. The battery covers
   its own home first, and the rest is sold.
 - **Hysteresis:** once it starts releasing, it keeps going until it's empty or
-  the sun is back. Otherwise its own evening sales pull the price under ₹8, it
+  the sun is back. Otherwise its own evening sales pull the price under ₹6.5, it
   stops, the price jumps back up, and it idles every other hour.
 
 On the default day, batteries cut evening transformer load from 21–34% to

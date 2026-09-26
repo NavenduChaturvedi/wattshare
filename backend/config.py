@@ -42,7 +42,9 @@ class SimConfig(BaseModel):
     # Max charge/discharge per hour. 1.5 kW spreads a full battery over ~3 evening hours;
     # faster rates dump it in one hour, overshoot local demand and export the rest.
     battery_kw: float = Field(default=1.5, gt=0)
-    battery_threshold_price: float = Field(default=8.0, gt=0)  # Rs/kWh: store below, sell at/above
+    # Rs/kWh: store below, release at/above. Just above the balanced-market price (6), so
+    # batteries fill while the market is in surplus and release once it turns scarce.
+    battery_threshold_price: float = Field(default=6.5, gt=0)
 
 
 def load_config(path: Optional[Union[str, Path]] = None) -> SimConfig:

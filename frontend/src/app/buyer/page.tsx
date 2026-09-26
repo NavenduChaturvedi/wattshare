@@ -47,7 +47,10 @@ export default function BuyerPage() {
     loadMarketData();
   }, [sim.hour, apiReady]);
 
-  const myZoneId = sim.households.find((h) => h.id === buyerId)?.zone_id ?? null;
+  const me = sim.households.find((h) => h.id === buyerId) ?? null;
+  const myZoneId = me?.zone_id ?? null;
+  // What this household still has to cover this hour -- the server caps purchases at it too.
+  const myNeedKwh = me ? Math.max(-me.open_net_kwh, 0) : 0;
 
   // A household doesn't shop its own surplus as a buyer.
   const shoppableListings = listings.filter((l) => l.seller_household_id !== buyerId);
@@ -64,7 +67,9 @@ export default function BuyerPage() {
   async function handleBuy(listing: BuyerListing) {
     if (!buyerId) return { message: "Select a household first.", success: false };
     try {
-      const result = await api.buyFromListing(listing.id, buyerId, listing.units_available_kwh);
+      const amount = Math.min(listing.units_available_kwh, myNeedKwh);
+      const result = await api.buyFromListing(listing.id, buyerId, amount);
+      await sim.refreshHouseholds();
       await loadMarketData();
       return { message: result.message, success: result.trade.amount_kwh > 0 };
     } catch (e) {
@@ -75,6 +80,7 @@ export default function BuyerPage() {
   async function handleSmartMatch(desiredKwh: number) {
     if (!buyerId) throw new Error("Select a household first.");
     const result = await api.smartMatch(buyerId, desiredKwh);
+    await sim.refreshHouseholds();
     await loadMarketData();
     return result;
   }
@@ -130,7 +136,7 @@ export default function BuyerPage() {
           />
         </div>
 
-        <ListingTable listings={shoppableListings} myZoneId={myZoneId} onBuy={handleBuy} />
+        <ListingTable listings={shoppableListings} myZoneId={myZoneId} myNeedKwh={myNeedKwh} onBuy={handleBuy} />
       </div>
     </div>
   );

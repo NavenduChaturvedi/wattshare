@@ -58,6 +58,7 @@ def main() -> None:
         state, trades = market.run_cycle(
             sim.households, sim.current_hour, transformer_capacity_kw=sim.transformer_capacity_kw
         )
+        sim.observe_price(state.clearing_price)
         print_market_state(state)
         print_trades(trades)
 

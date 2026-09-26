@@ -12,7 +12,10 @@ class Household:
     size_class: str = "medium"  # picks the real load profile: small / medium / large
     current_generation_kwh: float = 0.0
     current_consumption_kwh: float = 0.0
+    battery_capacity_kwh: float = 0.0  # 0 = no battery
+    battery_max_kw: float = 0.0
     battery_stored_kwh: float = 0.0
+    battery_flow_kwh: float = 0.0  # this hour: + charging from own surplus, - discharging
     # Energy already traded this hour: + for kWh sold, - for kWh bought. Both the
     # dispatcher cycle and the marketplace settle against this, so the same kWh
     # can't be sold (or bought) twice in one hour. Reset on every tick.
@@ -20,7 +23,8 @@ class Household:
 
     @property
     def net_kwh(self) -> float:
-        return round(self.current_generation_kwh - self.current_consumption_kwh, 3)
+        """What the home offers (> 0) or needs (< 0) from the market this hour, after its battery."""
+        return round(self.current_generation_kwh - self.current_consumption_kwh - self.battery_flow_kwh, 3)
 
     @property
     def open_net_kwh(self) -> float:

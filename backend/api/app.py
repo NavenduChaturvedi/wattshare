@@ -147,6 +147,7 @@ def run_match(conn=Depends(get_db)):
         transformer_capacity_kw=sim_engine.transformer_capacity_kw,
     )
     db.insert_market_state(conn, state)
+    sim_engine.observe_price(state.clearing_price)
     for trade in trades:
         trade.id = db.insert_trade(conn, trade)
         _settle(trade)

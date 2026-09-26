@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS households (
     current_generation_kwh REAL NOT NULL,
     current_consumption_kwh REAL NOT NULL,
     battery_stored_kwh REAL NOT NULL,
+    battery_capacity_kwh REAL NOT NULL DEFAULT 0,
+    battery_flow_kwh REAL NOT NULL DEFAULT 0,
     traded_kwh REAL NOT NULL DEFAULT 0
 );
 
@@ -109,13 +111,15 @@ def upsert_households(conn: sqlite3.Connection, households: List[Household]) -> 
     conn.executemany(
         """
         INSERT INTO households (id, name, has_solar, zone_id, current_generation_kwh, current_consumption_kwh,
-                                battery_stored_kwh, traded_kwh)
+                                battery_stored_kwh, battery_capacity_kwh, battery_flow_kwh, traded_kwh)
         VALUES (:id, :name, :has_solar, :zone_id, :current_generation_kwh, :current_consumption_kwh,
-                :battery_stored_kwh, :traded_kwh)
+                :battery_stored_kwh, :battery_capacity_kwh, :battery_flow_kwh, :traded_kwh)
         ON CONFLICT(id) DO UPDATE SET
             current_generation_kwh = excluded.current_generation_kwh,
             current_consumption_kwh = excluded.current_consumption_kwh,
             battery_stored_kwh = excluded.battery_stored_kwh,
+            battery_capacity_kwh = excluded.battery_capacity_kwh,
+            battery_flow_kwh = excluded.battery_flow_kwh,
             traded_kwh = excluded.traded_kwh
         """,
         [
@@ -127,6 +131,8 @@ def upsert_households(conn: sqlite3.Connection, households: List[Household]) -> 
                 "current_generation_kwh": h.current_generation_kwh,
                 "current_consumption_kwh": h.current_consumption_kwh,
                 "battery_stored_kwh": h.battery_stored_kwh,
+                "battery_capacity_kwh": h.battery_capacity_kwh,
+                "battery_flow_kwh": h.battery_flow_kwh,
                 "traded_kwh": h.traded_kwh,
             }
             for h in households
@@ -145,7 +151,14 @@ def fetch_households(conn: sqlite3.Connection) -> List[dict]:
             "current_generation_kwh": r["current_generation_kwh"],
             "current_consumption_kwh": r["current_consumption_kwh"],
             "battery_stored_kwh": r["battery_stored_kwh"],
+            "battery_capacity_kwh": r["battery_capacity_kwh"],
+            "battery_flow_kwh": r["battery_flow_kwh"],
             "traded_kwh": r["traded_kwh"],
+            # Same definitions as Household.net_kwh / open_net_kwh, so clients never re-derive them.
+            "net_kwh": round(r["current_generation_kwh"] - r["current_consumption_kwh"] - r["battery_flow_kwh"], 3),
+            "open_net_kwh": round(
+                r["current_generation_kwh"] - r["current_consumption_kwh"] - r["battery_flow_kwh"] - r["traded_kwh"], 3
+            ),
         }
         for r in rows
     ]

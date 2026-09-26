@@ -43,25 +43,29 @@ interface RowResult {
 export function ListingTable({
   listings,
   myZoneId,
+  myNeedKwh,
   onBuy,
 }: {
   listings: BuyerListing[];
   myZoneId: string | null;
+  myNeedKwh: number;
   onBuy: (listing: BuyerListing) => Promise<RowResult>;
 }) {
-  const [loadingId, setLoadingId] = useState<number | null>(null);
-  const [results, setResults] = useState<Record<number, RowResult>>({});
+  // Keyed by seller, not listing id: every sale re-snapshots the listing under a new id,
+  // so an id-keyed result would vanish the moment the table reloads after the purchase.
+  const [loadingSeller, setLoadingSeller] = useState<string | null>(null);
+  const [results, setResults] = useState<Record<string, RowResult>>({});
 
   async function handleBuy(listing: BuyerListing) {
-    setLoadingId(listing.id);
+    setLoadingSeller(listing.seller_household_id);
     setResults((prev) => {
       const next = { ...prev };
-      delete next[listing.id];
+      delete next[listing.seller_household_id];
       return next;
     });
     const result = await onBuy(listing);
-    setResults((prev) => ({ ...prev, [listing.id]: result }));
-    setLoadingId(null);
+    setResults((prev) => ({ ...prev, [listing.seller_household_id]: result }));
+    setLoadingSeller(null);
   }
 
   return (
@@ -100,18 +104,23 @@ export function ListingTable({
                   <td className="py-2 text-right align-top">
                     <button
                       onClick={() => handleBuy(l)}
-                      disabled={loadingId === l.id}
+                      disabled={loadingSeller === l.seller_household_id || myNeedKwh <= 0}
+                      title={myNeedKwh <= 0 ? "This household has no deficit to cover this hour" : undefined}
                       className="rounded-full px-3 py-1 text-xs font-medium disabled:opacity-50"
                       style={{ background: "var(--strong)", color: "var(--strong-contrast)" }}
                     >
-                      {loadingId === l.id ? "Buying..." : `Buy ${l.units_available_kwh.toFixed(1)} kWh`}
+                      {loadingSeller === l.seller_household_id
+                        ? "Buying..."
+                        : myNeedKwh <= 0
+                          ? "Nothing needed"
+                          : `Buy ${Math.min(l.units_available_kwh, myNeedKwh).toFixed(2)} kWh`}
                     </button>
-                    {results[l.id] && (
+                    {results[l.seller_household_id] && (
                       <p
                         className="mt-1 max-w-[16rem] text-right text-xs font-normal normal-case"
-                        style={{ color: results[l.id].success ? "var(--status-good)" : "var(--status-critical)" }}
+                        style={{ color: results[l.seller_household_id].success ? "var(--status-good)" : "var(--status-critical)" }}
                       >
-                        {results[l.id].message}
+                        {results[l.seller_household_id].message}
                       </p>
                     )}
                   </td>
@@ -121,6 +130,18 @@ export function ListingTable({
           </tbody>
         </table>
       </div>
+      {/* A purchase that sells a listing out removes its row -- keep the confirmation visible. */}
+      {Object.entries(results)
+        .filter(([sellerId]) => !listings.some((l) => l.seller_household_id === sellerId))
+        .map(([sellerId, r]) => (
+          <p
+            key={sellerId}
+            className="mt-3 text-xs"
+            style={{ color: r.success ? "var(--status-good)" : "var(--status-critical)" }}
+          >
+            {r.message}
+          </p>
+        ))}
     </Card>
   );
 }

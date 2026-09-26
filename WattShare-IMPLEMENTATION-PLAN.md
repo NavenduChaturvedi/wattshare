@@ -35,6 +35,17 @@
 > - `backend/market/ledger.py` is a pure hash chain. Each hash is computed after the INSERT takes SQLite's write lock, so concurrent requests can't fork the chain.
 > - `GET /ledger/verify` re-walks the chain, and the Trade Feed shows a "Ledger verified" chip.
 > - Tests cover editing, deleting and re-hashing forged rows, plus tampering with the database directly underneath the API.
+>
+> **Phase C2 is done (battery storage):**
+> - The policy is the plan's price-threshold rule (store below ₹8, release at or above it, or when there was no local supply last hour).
+> - Hysteresis was added after the first version oscillated: its own sales pulled the price under the threshold, so it idled in alternate hours through the evening.
+> - The 1.5 kW release rate was chosen by comparison. At 2.5 kW, two batteries dumped 5 kWh in one hour and exported the excess.
+> - `net_kwh` includes battery flow, so the market, the double-selling protection and the transformer load follow automatically.
+> - The dashboards gain a seller battery card and a dispatcher battery column.
+> - Result: evening transformer load drops from 21–34% to 4–9%, and local trade rises by about 7.6 kWh/day. The 68% overnight peak doesn't move (storage is far smaller than the night AC load).
+> - Also fixed along the way: the buyer's Buy button now offers only what the buyer needs, and purchase confirmations now show. They had been keyed by listing id, which changes on every sale, so they never rendered.
+>
+> **All planned phases (A–C) are done.** Still open: whether an oversupplied market should price below ₹6 (see below).
 
 ---
 

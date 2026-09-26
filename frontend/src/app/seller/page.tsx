@@ -11,6 +11,7 @@ import { SurplusCard } from "@/components/SurplusCard";
 import { ReliabilityCard } from "@/components/ReliabilityCard";
 import { StatTile } from "@/components/StatTile";
 import { ImpactCard } from "@/components/ImpactCard";
+import { BatteryCard } from "@/components/BatteryCard";
 
 const BASE_PRICE_FALLBACK = 6.0; // mirrors backend/market/pricing.py's BASE_PRICE, used only to
 // prefill the manual-price field before any market cycle has run yet
@@ -82,10 +83,8 @@ export default function SellerPage() {
   }, [sellerId, sim.hour]);
 
   const me = sim.households.find((h) => h.id === sellerId) ?? null;
-  // What's still unsold this hour -- the dispatcher may already have sold some of it.
-  const currentSurplusKwh = me
-    ? Math.max(me.current_generation_kwh - me.current_consumption_kwh - me.traded_kwh, 0)
-    : 0;
+  // What's still unsold this hour, after the home's battery has taken its share.
+  const currentSurplusKwh = me ? Math.max(me.open_net_kwh, 0) : 0;
   const defaultPrice = sim.marketState?.clearing_price ?? BASE_PRICE_FALLBACK;
 
   return (
@@ -133,6 +132,8 @@ export default function SellerPage() {
           </div>
           <ReliabilityCard score={stats?.reliability_score ?? null} />
         </div>
+
+        {me && me.battery_capacity_kwh > 0 && <BatteryCard household={me} />}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <StatTile label="Earnings today" value={`Rs ${(stats?.earnings_today ?? 0).toFixed(2)}`} />

@@ -29,20 +29,28 @@ def wait_for_step(args: argparse.Namespace) -> None:
             args.step = False
 
 
+def battery_cell(h) -> str:
+    if h.battery_capacity_kwh <= 0:
+        return "-"
+    arrow = "+" if h.battery_flow_kwh > 0 else ("-" if h.battery_flow_kwh < 0 else " ")
+    return f"{arrow}{abs(h.battery_flow_kwh):.1f} [{h.battery_stored_kwh:.1f}]"
+
+
 def print_household_snapshot(engine: SimulationEngine) -> None:
     print(f"\n=== Hour {engine.current_hour:02d}:00 ===")
-    header = f"{'ID':<5}{'Name':<16}{'Solar':<7}{'Gen(kWh)':>10}{'Cons(kWh)':>11}{'Net(kWh)':>10}"
+    header = f"{'ID':<5}{'Name':<16}{'Solar':<7}{'Gen(kWh)':>10}{'Cons(kWh)':>11}{'Batt':>12}{'Net(kWh)':>10}"
     print(header)
     print("-" * len(header))
 
-    total_gen = total_cons = 0.0
+    total_gen = total_cons = total_net = 0.0
     for h in engine.households:
         print(
             f"{h.id:<5}{h.name:<16}{'Yes' if h.has_solar else 'No':<7}"
-            f"{h.current_generation_kwh:>10.2f}{h.current_consumption_kwh:>11.2f}{h.net_kwh:>10.2f}"
+            f"{h.current_generation_kwh:>10.2f}{h.current_consumption_kwh:>11.2f}{battery_cell(h):>12}{h.net_kwh:>10.2f}"
         )
         total_gen += h.current_generation_kwh
         total_cons += h.current_consumption_kwh
+        total_net += h.net_kwh
 
     print("-" * len(header))
-    print(f"{'TOTAL':<28}{total_gen:>10.2f}{total_cons:>11.2f}{(total_gen - total_cons):>10.2f}")
+    print(f"{'TOTAL':<28}{total_gen:>10.2f}{total_cons:>11.2f}{'':>12}{total_net:>10.2f}")

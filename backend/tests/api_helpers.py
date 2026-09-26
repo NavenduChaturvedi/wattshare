@@ -2,7 +2,7 @@
 
 
 def open_net(h: dict) -> float:
-    return round(h["current_generation_kwh"] - h["current_consumption_kwh"] - h["traded_kwh"], 3)
+    return h["open_net_kwh"]
 
 
 def households(client) -> dict:

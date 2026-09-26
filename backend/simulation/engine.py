@@ -5,6 +5,7 @@ from backend.config import SimConfig, load_config
 from backend.data.load import hourly_profile, season_for
 from backend.data.solar import generation_kwh, hourly_irradiance
 
+from .battery import BatterySpec, apply_flow, decide_flow
 from .curves import consumption_kwh, solar_generation_kwh
 from .households import demo_households, generate_households
 from .models import Household
@@ -41,6 +42,20 @@ class SimulationEngine:
 
         self.transformer_capacity_kw = round(self.config.transformer_kw_per_home * len(self.households), 2)
 
+        self.battery_spec = BatterySpec(
+            capacity_kwh=self.config.battery_kwh,
+            max_rate_kw=self.config.battery_kw,
+            threshold_price=self.config.battery_threshold_price,
+        )
+        solar_by_size = sorted((h for h in self.households if h.has_solar), key=lambda h: (-h.capacity_kw, h.id))
+        for h in solar_by_size[: round(len(solar_by_size) * self.config.battery_share)]:
+            h.battery_capacity_kwh = self.battery_spec.capacity_kwh
+            h.battery_max_kw = self.battery_spec.max_rate_kw
+        # Last clearing price the batteries have seen (None = no local supply). Fed by
+        # observe_price() after each dispatch; used when the next hour opens.
+        self.price_signal: Optional[float] = None
+        self._releasing: Dict[str, bool] = {}  # battery hysteresis state, see battery.py
+
         self.real_data = self.config.data_source == "real"
         if self.real_data:
             loc = self.config.location
@@ -65,7 +80,21 @@ class SimulationEngine:
             else:
                 h.current_generation_kwh = solar_generation_kwh(hour, h.capacity_kw, self.rng)
                 h.current_consumption_kwh = consumption_kwh(hour, h.baseline_kw, self.rng)
+            if h.battery_capacity_kwh > 0:
+                h.battery_flow_kwh, self._releasing[h.id] = decide_flow(
+                    h.current_generation_kwh,
+                    h.current_consumption_kwh,
+                    h.battery_stored_kwh,
+                    self.battery_spec,
+                    self.price_signal,
+                    self._releasing.get(h.id, False),
+                )
+                h.battery_stored_kwh = apply_flow(h.battery_stored_kwh, h.battery_flow_kwh, self.battery_spec)
             h.traded_kwh = 0.0  # a new hour opens a fresh position
+
+    def observe_price(self, clearing_price: Optional[float]) -> None:
+        """The clearing price of the hour that just closed -- the batteries' signal for the next one."""
+        self.price_signal = clearing_price
 
     def tick(self) -> None:
         self.current_hour = (self.current_hour + 1) % 24

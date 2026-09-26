@@ -44,13 +44,16 @@ export function HouseholdTable({ households }: { households: Household[] }) {
               <th className="pb-2 font-medium">Solar</th>
               <th className="pb-2 pr-2 text-right font-medium">Gen (kWh)</th>
               <th className="pb-2 pr-2 text-right font-medium">Cons (kWh)</th>
+              <th className="pb-2 pr-2 text-right font-medium" title="This hour's battery flow [stored]">
+                Battery
+              </th>
               <th className="pb-2 pr-2 text-right font-medium">Net (kWh)</th>
               <th className="pb-2 text-right font-medium">Status</th>
             </tr>
           </thead>
           <tbody className="tabular-nums" style={{ color: "var(--ink)" }}>
             {households.map((h) => {
-              const net = h.current_generation_kwh - h.current_consumption_kwh;
+              const net = h.net_kwh;
               return (
                 <tr key={h.id} className="border-t" style={{ borderColor: "var(--grid-line)" }}>
                   <td className="py-2">{h.id}</td>
@@ -58,6 +61,17 @@ export function HouseholdTable({ households }: { households: Household[] }) {
                   <td className="py-2">{h.has_solar ? "Yes" : "No"}</td>
                   <td className="py-2 pr-2 text-right">{h.current_generation_kwh.toFixed(2)}</td>
                   <td className="py-2 pr-2 text-right">{h.current_consumption_kwh.toFixed(2)}</td>
+                  <td className="py-2 pr-2 text-right whitespace-nowrap" style={{ color: "var(--ink-secondary)" }}>
+                    {h.battery_capacity_kwh > 0 ? (
+                      <>
+                        {h.battery_flow_kwh > 0.005 ? "+" : h.battery_flow_kwh < -0.005 ? "-" : ""}
+                        {Math.abs(h.battery_flow_kwh).toFixed(2)}{" "}
+                        <span style={{ color: "var(--ink-muted)" }}>[{h.battery_stored_kwh.toFixed(1)}]</span>
+                      </>
+                    ) : (
+                      <span style={{ color: "var(--ink-muted)" }}>--</span>
+                    )}
+                  </td>
                   <td className="py-2 pr-2 text-right">{net.toFixed(2)}</td>
                   <td className="py-2 text-right">
                     <StatusChip net={net} />

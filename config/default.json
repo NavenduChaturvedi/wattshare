@@ -10,5 +10,10 @@
   "households": "demo",
   "n_households": 10,
   "solar_ratio": 0.4,
-  "seed": null
+  "seed": null,
+  "transformer_kw_per_home": 1.2,
+  "battery_share": 0.5,
+  "battery_kwh": 5.0,
+  "battery_kw": 1.5,
+  "battery_threshold_price": 8.0
 }

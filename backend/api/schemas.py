@@ -24,7 +24,11 @@ class HouseholdOut(BaseModel):
     current_generation_kwh: float
     current_consumption_kwh: float
     battery_stored_kwh: float
+    battery_capacity_kwh: float  # 0 = no battery
+    battery_flow_kwh: float  # this hour: + charging, - discharging
     traded_kwh: float  # already traded this hour: + sold, - bought
+    net_kwh: float  # generation - consumption - battery flow: + offering, - needing
+    open_net_kwh: float  # net_kwh not yet traded this hour
 
 
 class TradeOut(BaseModel):

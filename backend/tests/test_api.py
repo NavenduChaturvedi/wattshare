@@ -49,7 +49,7 @@ def test_no_household_ever_trades_past_its_own_net(client):
         advance(client, 1)
         client.post("/match")  # a second cycle in the same hour must find nothing left to double-sell
         for h in households(client).values():
-            net = round(h["current_generation_kwh"] - h["current_consumption_kwh"], 3)
+            net = h["net_kwh"]
             assert abs(h["traded_kwh"]) <= abs(net) + 1e-6
             assert h["traded_kwh"] * net >= 0  # sellers only sell, buyers only buy
 

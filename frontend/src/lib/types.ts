@@ -6,7 +6,11 @@ export interface Household {
   current_generation_kwh: number;
   current_consumption_kwh: number;
   battery_stored_kwh: number;
+  battery_capacity_kwh: number; // 0 = no battery
+  battery_flow_kwh: number; // this hour: + charging, - discharging
   traded_kwh: number; // already traded this hour: + sold, - bought
+  net_kwh: number; // generation - consumption - battery flow: + offering, - needing
+  open_net_kwh: number; // net_kwh not yet traded this hour
 }
 
 export interface SimConfig {

@@ -118,8 +118,18 @@ export function useSimulation() {
     return () => clearInterval(id);
   }, [autoPlay]);
 
+  /** Re-read households after a marketplace trade changed their open positions. */
+  async function refreshHouseholds() {
+    try {
+      setHouseholds(await api.getHouseholds());
+    } catch {
+      // The next advance/poll will surface connectivity problems; a stale table is harmless.
+    }
+  }
+
   return {
     connection,
+    refreshHouseholds,
     ledger,
     config,
     households,

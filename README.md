@@ -91,6 +91,22 @@ On the default real day, the transformer runs at 55–70% importing overnight
 (AC load) and up to about 70% exporting at midday, which is the classic
 "duck curve".
 
+**5. Home batteries.** By default, half the solar homes (the biggest arrays)
+have a 5 kWh battery that releases at up to 1.5 kW. It runs a simple
+price-threshold rule, driven by the price the previous hour cleared at:
+- **Below ₹8, with the sun up:** store the home's surplus instead of selling it.
+- **₹8 or above, or no local supply last hour:** release. The battery covers
+  its own home first, and the rest is sold.
+- **Hysteresis:** once it starts releasing, it keeps going until it's empty or
+  the sun is back. Otherwise its own evening sales pull the price under ₹8, it
+  stops, the price jumps back up, and it idles every other hour.
+
+On the default day, batteries cut evening transformer load from 21–34% to
+4–9% (17:00–19:00). They also bring local supply to evening hours that had
+none, and add about 7.6 kWh/day of local trade. They **don't** move the 68%
+overnight peak: two 5 kWh batteries can't cover about 40 kWh of night-time AC
+load. See `backend/simulation/battery.py`.
+
 ## Architecture
 
 ```
@@ -321,5 +337,4 @@ Deliberately out of scope for this project:
 ## Possible future work
 
 Not implemented, but the data model leaves room for them:
-- Battery storage (households store surplus instead of always selling).
 - Swap SQLite for Postgres if this ever needs real concurrent persistence.

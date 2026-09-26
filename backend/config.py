@@ -36,6 +36,13 @@ class SimConfig(BaseModel):
     # assumption for the simulation (Indian LV transformers serve dozens to hundreds
     # of homes; this sizes a slice of one), not a measured value.
     transformer_kw_per_home: float = Field(default=1.2, gt=0)
+    # Home batteries: the given share of solar homes get one, biggest arrays first.
+    battery_share: float = Field(default=0.5, ge=0, le=1)
+    battery_kwh: float = Field(default=5.0, gt=0)  # usable capacity
+    # Max charge/discharge per hour. 1.5 kW spreads a full battery over ~3 evening hours;
+    # faster rates dump it in one hour, overshoot local demand and export the rest.
+    battery_kw: float = Field(default=1.5, gt=0)
+    battery_threshold_price: float = Field(default=8.0, gt=0)  # Rs/kWh: store below, sell at/above
 
 
 def load_config(path: Optional[Union[str, Path]] = None) -> SimConfig:

@@ -6,6 +6,16 @@ import { api } from "./api";
 import type { Household, MarketState, SimConfig, Trade } from "./types";
 
 const AUTO_PLAY_INTERVAL_MS = 1500;
+// Free-tier hosting (Render) sleeps idle services; the first request can take ~a minute.
+const SLOW_START_HINT_MS = 4000; // pending this long -> tell the user the server is waking up
+const CONNECT_RETRY_MS = 3000;
+const CONNECT_GIVE_UP_MS = 90_000;
+const OFFLINE_MESSAGE = "Can't reach the WattShare API -- is the backend running?";
+
+/** connecting: first load in flight. waking: it's slow or failing, still retrying. */
+export type Connection = "connecting" | "waking" | "ready" | "offline";
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Drives the shared simulation clock (advance/auto-play) that every dashboard page reads from. */
 export function useSimulation() {
@@ -18,28 +28,52 @@ export function useSimulation() {
   const [isAdvancing, setIsAdvancing] = useState(false);
   const [autoPlay, setAutoPlay] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [connection, setConnection] = useState<Connection>("connecting");
 
   const advancingRef = useRef(false);
 
   useEffect(() => {
+    let cancelled = false;
+    const slowHint = setTimeout(() => {
+      if (!cancelled) setConnection((c) => (c === "connecting" ? "waking" : c));
+    }, SLOW_START_HINT_MS);
+
     (async () => {
-      try {
-        const initialHouseholds = await api.getHouseholds();
-        const initialTrades = await api.getTrades();
-        const initialMarketState = await api.getMarketState();
-        const initialConfig = await api.getConfig();
-        setConfig(initialConfig);
-        setHouseholds(initialHouseholds);
-        setTrades(initialTrades);
-        setMarketState(initialMarketState);
-        setHour(initialMarketState.timestamp ?? 0);
-        if (initialMarketState.timestamp !== null && initialMarketState.clearing_price !== null) {
-          setPriceHistory([{ hour: initialMarketState.timestamp, price: initialMarketState.clearing_price }]);
+      const deadline = Date.now() + CONNECT_GIVE_UP_MS;
+      while (!cancelled) {
+        try {
+          const initialHouseholds = await api.getHouseholds();
+          const initialTrades = await api.getTrades();
+          const initialMarketState = await api.getMarketState();
+          const initialConfig = await api.getConfig();
+          if (cancelled) return;
+          setConfig(initialConfig);
+          setHouseholds(initialHouseholds);
+          setTrades(initialTrades);
+          setMarketState(initialMarketState);
+          setHour(initialMarketState.timestamp ?? 0);
+          if (initialMarketState.timestamp !== null && initialMarketState.clearing_price !== null) {
+            setPriceHistory([{ hour: initialMarketState.timestamp, price: initialMarketState.clearing_price }]);
+          }
+          setConnection("ready");
+          return;
+        } catch {
+          if (cancelled) return;
+          if (Date.now() >= deadline) {
+            setConnection("offline");
+            setError(OFFLINE_MESSAGE);
+            return;
+          }
+          setConnection("waking");
+          await sleep(CONNECT_RETRY_MS);
         }
-      } catch {
-        setError("Can't reach the WattShare API -- is the backend running?");
       }
     })();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(slowHint);
+    };
   }, []);
 
   async function advance() {
@@ -65,7 +99,7 @@ export function useSimulation() {
       setTrades(tradeHistory);
       setError(null);
     } catch {
-      setError("Can't reach the WattShare API -- is the backend running?");
+      setError(OFFLINE_MESSAGE);
       setAutoPlay(false);
     } finally {
       setIsAdvancing(false);
@@ -80,6 +114,7 @@ export function useSimulation() {
   }, [autoPlay]);
 
   return {
+    connection,
     config,
     households,
     trades,

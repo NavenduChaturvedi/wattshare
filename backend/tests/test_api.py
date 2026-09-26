@@ -166,3 +166,17 @@ def test_validation_errors(client):
     assert client.post("/listings", json={"seller_household_id": solar["id"], "pricing_mode": "manual"}).status_code == 400
     assert client.post("/listings/999/buy", json={"buyer_household_id": "H02", "amount_kwh": 1}).status_code == 404
     assert client.get("/sellers/NOPE/stats").status_code == 404
+
+
+def test_cors_defaults_to_wildcard(monkeypatch):
+    from backend.api.app import cors_origins
+
+    monkeypatch.delenv("WATTSHARE_CORS_ORIGINS", raising=False)
+    assert cors_origins() == ["*"]
+
+
+def test_cors_origins_from_env(monkeypatch):
+    from backend.api.app import cors_origins
+
+    monkeypatch.setenv("WATTSHARE_CORS_ORIGINS", "https://wattshare.vercel.app/, http://localhost:3000")
+    assert cors_origins() == ["https://wattshare.vercel.app", "http://localhost:3000"]

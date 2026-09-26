@@ -6,7 +6,19 @@
 >
 > **Progress (2026-09-26, later): A2 is done.** The three §5 decisions went with the recommended defaults: a **JSON** config, **loop one real day**, and the **demo preset** stays the default (`"households": "generated"` is also available). Solar comes from Open-Meteo, with three committed Lucknow 2019 fixture days. Load comes from a **real dataset**, so the synthetic fallback wasn't needed: CEEW's Mathura (UP) smart meters, CC0 (see `backend/data/SOURCES.md`). There is also `GET /config`, a provenance line in the dashboard header, and `--config` / `--step` on the CLIs. The suite is at 138 tests, all offline.
 >
-> **A2.5 finding:** prices now move properly. They sit at ₹12 around dawn and dusk, about ₹6.5 at midday, and there is no supply at night, so nothing is flat or pinned. But `base + α·(D/S)` can never go **below** `base` (₹6), so `PRICE_MIN = 4` is unreachable, and a midday glut with 4× more supply than demand still only reaches ₹6.46. Retuning is a product decision and hasn't been made yet (see §5). **Next: Phase B.**
+> **A2.5 finding:** prices now move properly. They sit at ₹12 around dawn and dusk, about ₹6.5 at midday, and there is no supply at night, so nothing is flat or pinned. But `base + α·(D/S)` can never go **below** `base` (₹6), so `PRICE_MIN = 4` is unreachable, and a midday glut with 4× more supply than demand still only reaches ₹6.46. Retuning is a product decision and hasn't been made yet (see §5).
+>
+> **Phase B (in progress):**
+> - Done:
+>   - README: regulatory context, why not blockchain, data sources, CI badge, Python version.
+>   - `WATTSHARE_CORS_ORIGINS` and a Render health check.
+>   - Cold-start "waking up" state with retries.
+>   - Boilerplate SVGs removed.
+>   - CI actions moved to v7 and Node 22.
+> - Remaining:
+>   - The actual Render and Vercel deploys, which need the account owner.
+>   - Screenshots or a GIF for the README.
+>   - A check of the mobile layout in a real browser.
 
 ---
 

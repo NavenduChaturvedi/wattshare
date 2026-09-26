@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -62,11 +63,18 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="WattShare API", lifespan=lifespan)
 
-# Local demo, no auth/cookies -- wildcard is fine and sidesteps origin quirks
-# from whatever dev proxy fronts the frontend during local development.
+
+def cors_origins() -> list:
+    """WATTSHARE_CORS_ORIGINS: comma-separated allowed origins, e.g. the Vercel URL in
+    production. Unset means "*" -- fine for local dev (no auth/cookies), and it
+    sidesteps origin quirks from whatever dev proxy fronts the frontend."""
+    raw = os.environ.get("WATTSHARE_CORS_ORIGINS", "").strip()
+    return [o.strip().rstrip("/") for o in raw.split(",") if o.strip()] if raw else ["*"]
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins(),
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )

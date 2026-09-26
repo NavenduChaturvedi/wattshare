@@ -1,9 +1,11 @@
 import type { MarketState } from "@/lib/types";
+import type { Connection } from "@/lib/useSimulation";
 import { ArrowRightIcon, PauseIcon, PlayIcon } from "./icons";
 
 export function Hero({
   hour,
   marketState,
+  connection,
   isAdvancing,
   autoPlay,
   error,
@@ -12,6 +14,7 @@ export function Hero({
 }: {
   hour: number;
   marketState: MarketState | null;
+  connection: Connection;
   isAdvancing: boolean;
   autoPlay: boolean;
   error: string | null;
@@ -19,6 +22,7 @@ export function Hero({
   onToggleAutoPlay: () => void;
 }) {
   const price = marketState?.clearing_price ?? null;
+  const ready = connection === "ready";
 
   return (
     <section
@@ -41,7 +45,7 @@ export function Hero({
         <div className="flex flex-col gap-2">
           <button
             onClick={onAdvance}
-            disabled={isAdvancing || autoPlay}
+            disabled={!ready || isAdvancing || autoPlay}
             className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-opacity disabled:opacity-50"
             style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
           >
@@ -50,7 +54,8 @@ export function Hero({
           </button>
           <button
             onClick={onToggleAutoPlay}
-            className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium"
+            disabled={!ready}
+            className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-opacity disabled:opacity-50"
             style={
               autoPlay
                 ? { background: "var(--strong)", color: "var(--strong-contrast)" }
@@ -71,6 +76,22 @@ export function Hero({
           >
             {error}
           </p>
+        ) : !ready ? (
+          <div role="status" aria-live="polite">
+            <h2 className="flex items-center gap-3 text-2xl font-bold sm:text-3xl" style={{ color: "var(--ink)" }}>
+              <span
+                className="h-3 w-3 shrink-0 animate-pulse rounded-full"
+                style={{ background: "var(--accent)" }}
+                aria-hidden
+              />
+              {connection === "waking" ? "Waking up the server..." : "Connecting..."}
+            </h2>
+            <p className="mt-1 text-sm" style={{ color: "var(--ink-secondary)" }}>
+              {connection === "waking"
+                ? "The demo backend sleeps when idle on free hosting -- the first load can take up to a minute."
+                : "Loading the neighborhood."}
+            </p>
+          </div>
         ) : price !== null ? (
           <>
             <h2 className="text-3xl font-bold tabular-nums sm:text-4xl" style={{ color: "var(--ink)" }}>

@@ -99,6 +99,7 @@ export default function SellerPage() {
         <Hero
           hour={sim.hour}
           marketState={sim.marketState}
+          connection={sim.connection}
           isAdvancing={sim.isAdvancing}
           autoPlay={sim.autoPlay}
           error={sim.error}

@@ -37,12 +37,15 @@ export default function BuyerPage() {
     }
   }
 
+  const apiReady = sim.connection === "ready";
+
   useEffect(() => {
+    if (!apiReady) return; // don't race the cold-start retry loop in useSimulation
     // loadMarketData's setState calls happen after an await, not synchronously in
     // the effect body -- the standard "fetch on mount/dep-change" pattern.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadMarketData();
-  }, [sim.hour]);
+  }, [sim.hour, apiReady]);
 
   const myZoneId = sim.households.find((h) => h.id === buyerId)?.zone_id ?? null;
 
@@ -87,6 +90,7 @@ export default function BuyerPage() {
         <Hero
           hour={sim.hour}
           marketState={sim.marketState}
+          connection={sim.connection}
           isAdvancing={sim.isAdvancing}
           autoPlay={sim.autoPlay}
           error={sim.error}

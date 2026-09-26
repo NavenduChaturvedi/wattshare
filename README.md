@@ -1,5 +1,7 @@
 # WattShare
 
+[![CI](https://github.com/NavenduChaturvedi/wattshare/actions/workflows/ci.yml/badge.svg)](https://github.com/NavenduChaturvedi/wattshare/actions/workflows/ci.yml)
+
 A peer-to-peer solar energy trading simulator for a residential neighborhood.
 Households with rooftop solar sell surplus energy directly to nearby neighbors
 instead of feeding it back to the grid at low tariffs. A dispatcher engine
@@ -143,6 +145,8 @@ frontend/               Phase 4 -- Next.js dashboard
 
 ### Backend
 
+Requires Python 3.11+ (CI tests 3.11 and 3.12; Render runs 3.12).
+
 ```bash
 python -m venv .venv
 ./.venv/Scripts/activate       # macOS/Linux: source .venv/bin/activate
@@ -182,7 +186,7 @@ pytest
 ```
 
 GitHub Actions (`.github/workflows/ci.yml`) runs the backend suite on Python
-3.11 and 3.12, and lints + builds the frontend, on every push.
+3.11 and 3.12, and lints + builds the frontend (Node 22), on every push.
 
 ### Frontend
 
@@ -220,18 +224,53 @@ and the persisted trade history always stay consistent with each other.
 ## Deployment
 
 **Backend -> Render.** `render.yaml` at the repo root is a ready-to-use
-Blueprint (build: `pip install -r backend/requirements.txt`, start:
-`uvicorn backend.api.app:app --host 0.0.0.0 --port $PORT`). Either connect
-the repo as a Blueprint, or create a Python web service manually with those
-same two commands.
+Blueprint:
+- build: `pip install -r backend/requirements.txt`
+- start: `uvicorn backend.api.app:app --host 0.0.0.0 --port $PORT`
+- health check: `/config`
+
+Connect the repo as a Blueprint, and Render will ask for
+`WATTSHARE_CORS_ORIGINS`. Set it to your Vercel URL once you have one; leave
+it empty to allow any origin.
 
 **Frontend -> Vercel.** Import the repo, set the project's **Root Directory**
-to `frontend`, and set `NEXT_PUBLIC_API_URL` to your deployed Render URL in
-the project's environment variables.
+to `frontend`, and set `NEXT_PUBLIC_API_URL` to your Render URL in the
+project's environment variables. The variable is inlined at build time, so
+redeploy after changing it.
 
-The two services are independent -- CORS on the backend is left permissive
-(`allow_origins=["*"]`) since there's no auth or cookies involved, so the
-frontend can point at any backend URL without extra configuration.
+Things to know about Render's free tier:
+- **Cold starts.** The service sleeps after about 15 minutes idle, and the
+  first request can take up to a minute. The dashboard shows "Waking up the
+  server..." and keeps retrying for up to 90 seconds instead of erroring.
+- **Ephemeral disk.** The SQLite file doesn't survive a restart. That's fine
+  here, because the database resets on every boot by design, so it always
+  matches the fresh in-memory simulation.
+- **No network needed at runtime.** The default config's solar data and load
+  profiles are committed, so nothing is fetched while the app runs.
+
+## Regulatory context
+
+Under India's Electricity Act, 2003, selling electricity between consumers is
+not recognised. Anyone distributing or trading electricity needs a licence from
+the relevant State Electricity Regulatory Commission (SERC). So WattShare is
+built as a **matching and dynamic-pricing engine**, not a trading platform.
+
+It is designed to be legible against the model India's live pilots already
+use. In February 2026, DERC and UPERC approved six-month peer-to-peer solar
+trading pilots under the India Energy Stack framework. In those pilots a
+licensed DISCOM (TP-DDL, BSES, PVVNL) runs the pilot, and a technology partner
+supplies the platform: in the UP pilot, India Smart Grid Forum (ISGF) with
+Powerledger. WattShare does not intend to operate commercially without that
+kind of institutional partnership.
+
+## Why not blockchain
+
+The real DERC/UPERC pilots settle through blockchain-*enabled* ledgers
+integrated with DISCOM billing systems, not public gas-fee chains. WattShare's
+trade ledger is a normal database. A tamper-evident hash chain (blockchain-
+*inspired*, not a deployed smart contract) is a stretch feature, not core
+scope. That keeps the project honest about what it is: a matching and pricing
+engine, not a blockchain product wearing a solar costume.
 
 ## Non-goals
 

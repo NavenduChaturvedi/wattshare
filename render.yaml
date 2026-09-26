@@ -5,6 +5,11 @@ services:
     plan: free
     buildCommand: pip install -r backend/requirements.txt
     startCommand: uvicorn backend.api.app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /config
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.7
+      # Comma-separated frontend origin(s), e.g. https://wattshare.vercel.app.
+      # Render asks for the value when the Blueprint is created; leave it empty to allow "*".
+      - key: WATTSHARE_CORS_ORIGINS
+        sync: false

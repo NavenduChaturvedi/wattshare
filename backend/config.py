@@ -32,6 +32,10 @@ class SimConfig(BaseModel):
     n_households: int = Field(default=10, ge=2, le=200)
     solar_ratio: float = Field(default=0.4, gt=0, lt=1)
     seed: Optional[int] = None
+    # The neighbourhood's share of its distribution transformer, per home. An
+    # assumption for the simulation (Indian LV transformers serve dozens to hundreds
+    # of homes; this sizes a slice of one), not a measured value.
+    transformer_kw_per_home: float = Field(default=1.2, gt=0)
 
 
 def load_config(path: Optional[Union[str, Path]] = None) -> SimConfig:

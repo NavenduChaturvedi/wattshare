@@ -25,3 +25,8 @@ class MarketState:
     total_supply_kwh: float
     total_demand_kwh: float
     clearing_price: Optional[float]
+    # Net flow through the distribution transformer this hour: + importing from
+    # the grid, - exporting to it. Local P2P trades stay on the LV feeder; only
+    # the neighbourhood's residual imbalance crosses the transformer.
+    transformer_load_kw: float = 0.0
+    transformer_load_pct: Optional[float] = None  # |load| / capacity; None if capacity unknown

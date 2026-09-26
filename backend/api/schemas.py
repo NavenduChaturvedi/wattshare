@@ -41,6 +41,8 @@ class MarketStateOut(BaseModel):
     total_supply_kwh: float
     total_demand_kwh: float
     clearing_price: Optional[float] = None
+    transformer_load_kw: float = 0.0  # + importing from the grid, - exporting
+    transformer_load_pct: Optional[float] = None
 
 
 class SimulationStatusOut(BaseModel):
@@ -107,6 +109,7 @@ class MarketSummaryOut(BaseModel):
     average_listing_price: Optional[float] = None
     best_listing_price: Optional[float] = None
     grid_health: Literal["green", "yellow", "red"]
+    transformer_load_pct: Optional[float] = None
     price_trend: List[PricePointOut]
 
 

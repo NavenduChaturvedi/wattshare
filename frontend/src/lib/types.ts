@@ -35,6 +35,8 @@ export interface MarketState {
   total_supply_kwh: number;
   total_demand_kwh: number;
   clearing_price: number | null;
+  transformer_load_kw: number; // + importing from the grid, - exporting
+  transformer_load_pct: number | null;
 }
 
 export interface SimulationStatus {
@@ -94,6 +96,7 @@ export interface MarketSummary {
   average_listing_price: number | null;
   best_listing_price: number | null;
   grid_health: GridHealth;
+  transformer_load_pct: number | null;
   price_trend: MarketTrendPoint[];
 }
 

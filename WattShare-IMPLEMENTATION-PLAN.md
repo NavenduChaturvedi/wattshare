@@ -23,6 +23,13 @@
 >   - **Hour flow reordered:** the marketplace trades while an hour is open, and the dispatcher clears the leftovers when it closes. Before this, dispatching as soon as an hour opened (after the double-sell fix) left the marketplace permanently empty.
 >
 > **Phase B is done**, apart from setting the health-check path on the existing Render service, which the API tools can't change; it's a one-field change in the dashboard. **Next: Phase C** (stretch), plus the open pricing decision below.
+>
+> **Phase C1 is done (transformer load):**
+> - What the transformer carries is the neighbourhood's net import or export, since local trades stay on the LV feeder. Its capacity is `transformer_kw_per_home` × the number of homes, where the per-home figure is an assumption.
+> - Pricing gains `+ β·(import/capacity)²`, applied on import only.
+> - `MarketState` now records `transformer_load_kw` and `transformer_load_pct`, and grid health uses load % in either direction.
+> - The dashboards show the transformer %.
+> - Real-day result: 55–70% importing overnight and up to about 70% exporting at midday. The premium rarely moves the price, because the heaviest imports happen at night when there's no local supply to price. Batteries (C2) are the lever that changes that.
 
 ---
 

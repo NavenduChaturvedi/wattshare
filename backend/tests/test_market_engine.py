@@ -48,6 +48,38 @@ def test_energy_already_traded_this_hour_is_not_rematched():
     assert state.clearing_price is None
 
 
+def test_transformer_carries_the_net_import():
+    # 3 kWh of solar surplus locally, 5 kWh of demand -> 2 kWh has to come through the transformer.
+    hh = [household("S1", gen=4.0, cons=1.0), household("B1", cons=2.0), household("B2", cons=3.0)]
+    state, _ = MarketEngine().run_cycle(hh, hour=17, transformer_capacity_kw=4.0)
+    assert state.transformer_load_kw == pytest.approx(2.0)
+    assert state.transformer_load_pct == pytest.approx(50.0)
+    # Congestion premium: 6 + 2*(5/3) + 4*(2/4)^2 = 10.33
+    assert state.clearing_price == pytest.approx(10.33)
+
+
+def test_midday_export_is_reverse_flow_with_no_premium():
+    hh = [household("S1", gen=5.0, cons=1.0), household("B1", cons=1.0)]
+    state, _ = MarketEngine().run_cycle(hh, hour=12, transformer_capacity_kw=4.0)
+    assert state.transformer_load_kw == pytest.approx(-3.0)  # exporting
+    assert state.transformer_load_pct == pytest.approx(75.0)
+    assert state.clearing_price == clearing_price(1.0, 4.0)
+
+
+def test_local_trades_do_not_change_transformer_flow():
+    hh = [household("S1", gen=4.0, cons=1.0), household("B1", cons=2.0)]
+    before, _ = MarketEngine().run_cycle(hh, hour=12, transformer_capacity_kw=4.0)
+    hh[0].record_sale(2.0)
+    hh[1].record_purchase(2.0)
+    after, _ = MarketEngine().run_cycle(hh, hour=12, transformer_capacity_kw=4.0)
+    assert after.transformer_load_kw == before.transformer_load_kw
+
+
+def test_no_capacity_means_no_load_pct():
+    state, _ = MarketEngine().run_cycle([household("S1", gen=2.0, cons=1.0)], hour=12)
+    assert state.transformer_load_pct is None
+
+
 def test_no_supply_means_no_price_and_no_trades():
     state, trades = MarketEngine().run_cycle([household("B1", cons=1.0)], hour=21)
     assert (state.clearing_price, trades) == (None, [])

@@ -66,13 +66,30 @@ per trade):
 
 ```
 clearing_price = base_price + alpha * (total_demand_kwh / total_supply_kwh)
+                            + beta  * (transformer_import / transformer_capacity)^2
 clamped to [price_min, price_max]
 ```
 
-With `base_price = 6`, `alpha = 2`, `price_min = 4`, `price_max = 12` (Rs/kWh)
--- placeholder constants chosen to be plausible and easy to explain, not
-economically rigorous. Every trade executed in a cycle settles at that
-cycle's single clearing price.
+The constants are `base_price = 6`, `alpha = 2`, `beta = 4`, `price_min = 4`
+and `price_max = 12` (Rs/kWh). They're placeholders chosen to be plausible and
+easy to explain, not economically rigorous. Every trade in a cycle settles at
+that cycle's single clearing price.
+
+**4. Transformer load and grid health.** Energy traded between neighbours
+stays on the local low-voltage feeder. Only the neighbourhood's net imbalance,
+`|total consumption - total generation|`, crosses the distribution
+transformer. Its capacity is `transformer_kw_per_home` (default 1.2 kW, an
+assumption) × the number of homes.
+- The quadratic `beta` term adds a congestion premium while the neighbourhood
+  is **importing** from the grid. Export adds no premium: pricing local energy
+  higher then would only discourage the local consumption that relieves it.
+- **Grid health** (green / yellow / red at <50% / <80% / ≥80% of capacity)
+  counts load in *both* directions. Heavy evening imports and heavy midday
+  solar export (reverse flow) both stress the transformer.
+
+On the default real day, the transformer runs at 55–70% importing overnight
+(AC load) and up to about 70% exporting at midday, which is the classic
+"duck curve".
 
 ## Architecture
 
@@ -298,7 +315,6 @@ Deliberately out of scope for this project:
 ## Possible future work
 
 Not implemented, but the data model leaves room for them:
-- Transformer load term in the pricing formula (`+ beta * (load/max_load)^2`).
 - Battery storage (households store surplus instead of always selling).
 - Hash-chained trade ledger for a tamper-evident history.
 - Swap SQLite for Postgres if this ever needs real concurrent persistence.

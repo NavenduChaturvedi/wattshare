@@ -20,6 +20,7 @@ class MarketEngine:
         households: List[Household],
         hour: int,
         ask_prices: Optional[Mapping[str, float]] = None,
+        transformer_capacity_kw: Optional[float] = None,
     ) -> Tuple[MarketState, List[Trade]]:
         """`ask_prices` maps seller id -> their own asking price (manual listings).
         Sellers without one ask the clearing price. Asks only decide who sells first;
@@ -31,7 +32,15 @@ class MarketEngine:
 
         total_supply = round(sum(h.open_net_kwh for h in sellers), 3)
         total_demand = round(sum(-h.open_net_kwh for h in buyers), 3)
-        price = clearing_price(total_demand, total_supply)
+        # Physical, not open, positions: the transformer carries the neighbourhood's
+        # whole imbalance for the hour regardless of who has traded with whom.
+        transformer_load = round(-sum(h.net_kwh for h in households), 3)  # kWh over 1 h = average kW
+        import_ratio = 0.0
+        load_pct = None
+        if transformer_capacity_kw:
+            import_ratio = max(transformer_load, 0.0) / transformer_capacity_kw
+            load_pct = round(abs(transformer_load) / transformer_capacity_kw * 100, 1)
+        price = clearing_price(total_demand, total_supply, import_ratio)
 
         new_trades: List[Trade] = []
         if price is not None:
@@ -58,5 +67,7 @@ class MarketEngine:
             total_supply_kwh=total_supply,
             total_demand_kwh=total_demand,
             clearing_price=price,
+            transformer_load_kw=transformer_load,
+            transformer_load_pct=load_pct,
         )
         return state, new_trades

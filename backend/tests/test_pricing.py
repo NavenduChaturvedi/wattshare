@@ -1,6 +1,6 @@
 import pytest
 
-from backend.market.pricing import ALPHA, BASE_PRICE, PRICE_MAX, PRICE_MIN, clearing_price
+from backend.market.pricing import ALPHA, BASE_PRICE, BETA, PRICE_MAX, PRICE_MIN, clearing_price
 
 
 def test_no_supply_means_no_price():
@@ -21,6 +21,20 @@ def test_zero_demand_sits_at_base_price():
     # The formula never goes below BASE_PRICE, so PRICE_MIN only bites if the constants change.
     assert clearing_price(total_demand_kwh=0.0, total_supply_kwh=10.0) == BASE_PRICE
     assert PRICE_MIN <= BASE_PRICE <= PRICE_MAX
+
+
+def test_transformer_import_adds_a_quadratic_premium():
+    no_load = clearing_price(2.0, 4.0)
+    assert clearing_price(2.0, 4.0, transformer_import_ratio=0.5) == pytest.approx(no_load + BETA * 0.25)
+    assert clearing_price(2.0, 4.0, transformer_import_ratio=1.0) == pytest.approx(no_load + BETA)
+
+
+def test_export_adds_no_premium():
+    assert clearing_price(2.0, 4.0, transformer_import_ratio=-0.8) == clearing_price(2.0, 4.0)
+
+
+def test_congested_price_still_clamps_at_max():
+    assert clearing_price(3.0, 4.0, transformer_import_ratio=3.0) == PRICE_MAX
 
 
 def test_monotonic_in_demand_over_supply():

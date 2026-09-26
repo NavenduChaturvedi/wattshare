@@ -200,3 +200,15 @@ def test_close_then_open_leaves_the_new_hour_open_for_the_marketplace(client):
     listing = client.post("/listings", json={"seller_household_id": seller["id"], "pricing_mode": "auto"}).json()
     assert listing["units_available_kwh"] > 0
     assert client.get("/market-state").json()["timestamp"] == 12  # last cleared hour
+
+
+def test_market_summary_reports_transformer_load(client):
+    from backend.market.grid_health import compute_grid_health
+
+    advance(client, 1)  # closes 00:00: night import, no local supply
+    state = client.get("/market-state").json()
+    assert state["transformer_load_kw"] > 0
+    assert state["transformer_load_pct"] > 0
+    summary = client.get("/market/summary").json()
+    assert summary["transformer_load_pct"] == state["transformer_load_pct"]
+    assert summary["grid_health"] == compute_grid_health(state["transformer_load_pct"])

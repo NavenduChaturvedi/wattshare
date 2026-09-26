@@ -132,7 +132,10 @@ def simulate_tick(conn=Depends(get_db)):
 @app.post("/match", response_model=MatchResponse)
 def run_match(conn=Depends(get_db)):
     state, trades = market_engine.run_cycle(
-        sim_engine.households, sim_engine.current_hour, ask_prices=_manual_ask_prices(conn)
+        sim_engine.households,
+        sim_engine.current_hour,
+        ask_prices=_manual_ask_prices(conn),
+        transformer_capacity_kw=sim_engine.transformer_capacity_kw,
     )
     db.insert_market_state(conn, state)
     for trade in trades:
@@ -430,8 +433,7 @@ def get_market_state(conn=Depends(get_db)):
 def get_market_summary(conn=Depends(get_db)):
     latest_state = db.fetch_latest_market_state(conn)
     current_clearing_price = latest_state["clearing_price"] if latest_state else None
-    total_supply = latest_state["total_supply_kwh"] if latest_state else 0.0
-    total_demand = latest_state["total_demand_kwh"] if latest_state else 0.0
+    load_pct = latest_state["transformer_load_pct"] if latest_state else None
 
     active_listings = [Listing(**row) for row in db.fetch_active_listings(conn)]
     average_price, best_price = compute_listing_price_stats(active_listings, current_clearing_price)
@@ -447,6 +449,7 @@ def get_market_summary(conn=Depends(get_db)):
         current_clearing_price=current_clearing_price,
         average_listing_price=average_price,
         best_listing_price=best_price,
-        grid_health=compute_grid_health(total_demand, total_supply),
+        grid_health=compute_grid_health(load_pct),
+        transformer_load_pct=load_pct,
         price_trend=price_trend,
     )

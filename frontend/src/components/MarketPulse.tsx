@@ -5,7 +5,7 @@ export function MarketPulse({ summary }: { summary: MarketSummary | null }) {
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-3xl p-4" style={{ background: "var(--card-bg)" }}>
       {summary ? (
-        <GridHealthBadge health={summary.grid_health} />
+        <GridHealthBadge health={summary.grid_health} loadPct={summary.transformer_load_pct} />
       ) : (
         <span className="text-sm" style={{ color: "var(--ink-muted)" }}>
           Loading grid status...

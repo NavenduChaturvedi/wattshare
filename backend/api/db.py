@@ -44,7 +44,9 @@ CREATE TABLE IF NOT EXISTS market_states (
     timestamp INTEGER NOT NULL,
     total_supply_kwh REAL NOT NULL,
     total_demand_kwh REAL NOT NULL,
-    clearing_price REAL
+    clearing_price REAL,
+    transformer_load_kw REAL NOT NULL DEFAULT 0,
+    transformer_load_pct REAL
 );
 
 -- Append-only, like trades/market_states: each save is a new row rather than an
@@ -209,14 +211,18 @@ def fetch_trades_for_marketplace(conn: sqlite3.Connection) -> List[Trade]:
 def insert_market_state(conn: sqlite3.Connection, state: MarketState) -> None:
     conn.execute(
         """
-        INSERT INTO market_states (timestamp, total_supply_kwh, total_demand_kwh, clearing_price)
-        VALUES (:timestamp, :total_supply_kwh, :total_demand_kwh, :clearing_price)
+        INSERT INTO market_states (timestamp, total_supply_kwh, total_demand_kwh, clearing_price,
+                                   transformer_load_kw, transformer_load_pct)
+        VALUES (:timestamp, :total_supply_kwh, :total_demand_kwh, :clearing_price,
+                :transformer_load_kw, :transformer_load_pct)
         """,
         {
             "timestamp": state.timestamp,
             "total_supply_kwh": state.total_supply_kwh,
             "total_demand_kwh": state.total_demand_kwh,
             "clearing_price": state.clearing_price,
+            "transformer_load_kw": state.transformer_load_kw,
+            "transformer_load_pct": state.transformer_load_pct,
         },
     )
 
@@ -230,6 +236,8 @@ def fetch_latest_market_state(conn: sqlite3.Connection) -> Optional[dict]:
         "total_supply_kwh": row["total_supply_kwh"],
         "total_demand_kwh": row["total_demand_kwh"],
         "clearing_price": row["clearing_price"],
+        "transformer_load_kw": row["transformer_load_kw"],
+        "transformer_load_pct": row["transformer_load_pct"],
     }
 
 

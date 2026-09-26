@@ -1,22 +1,18 @@
-from typing import Literal
+from typing import Literal, Optional
 
 GridHealth = Literal["green", "yellow", "red"]
 
-# Same demand/supply ratio that drives clearing_price (see pricing.py) -- no new
-# simulated quantity, just a traffic-light bucketing of a signal that already exists.
-LOW_STRESS_RATIO = 0.5
-HIGH_STRESS_RATIO = 1.5
+# Transformer utilisation bands (% of rated capacity), in either flow direction:
+# heavy evening import and heavy midday solar export (reverse flow) both stress it.
+MODERATE_LOAD_PCT = 50.0
+HIGH_LOAD_PCT = 80.0
 
 
-def compute_grid_health(total_demand_kwh: float, total_supply_kwh: float) -> GridHealth:
-    """Green: plenty of local supply relative to demand. Yellow: roughly balanced.
-    Red: demand well exceeds local supply (or there's no supply at all to meet it)."""
-    if total_supply_kwh <= 0:
-        return "red" if total_demand_kwh > 0 else "green"
-
-    ratio = total_demand_kwh / total_supply_kwh
-    if ratio <= LOW_STRESS_RATIO:
+def compute_grid_health(transformer_load_pct: Optional[float]) -> GridHealth:
+    """Green: comfortable headroom. Yellow: working hard. Red: near or over rated capacity.
+    No reading yet (no cycle has run) is reported as green."""
+    if transformer_load_pct is None or transformer_load_pct < MODERATE_LOAD_PCT:
         return "green"
-    if ratio <= HIGH_STRESS_RATIO:
+    if transformer_load_pct < HIGH_LOAD_PCT:
         return "yellow"
     return "red"

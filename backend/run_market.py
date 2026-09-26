@@ -28,6 +28,8 @@ def print_market_state(state: MarketState) -> None:
             f"Market: supply={state.total_supply_kwh:.2f} kWh, demand={state.total_demand_kwh:.2f} kWh, "
             f"clearing price=Rs {state.clearing_price:.2f}/kWh"
         )
+    flow = "importing" if state.transformer_load_kw > 0 else "exporting"
+    print(f"Transformer: {flow} {abs(state.transformer_load_kw):.2f} kW ({state.transformer_load_pct or 0:.0f}% of capacity)")
 
 
 def print_trades(trades: List[Trade]) -> None:
@@ -53,7 +55,9 @@ def main() -> None:
 
     for hour in range(HOURS_PER_DAY):
         print_household_snapshot(sim)
-        state, trades = market.run_cycle(sim.households, sim.current_hour)
+        state, trades = market.run_cycle(
+            sim.households, sim.current_hour, transformer_capacity_kw=sim.transformer_capacity_kw
+        )
         print_market_state(state)
         print_trades(trades)
 

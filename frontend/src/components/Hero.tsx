@@ -105,6 +105,13 @@ export function Hero({
               {String(marketState!.timestamp ?? 0).padStart(2, "0")}:00 cleared at this price &middot; supply{" "}
               {marketState!.total_supply_kwh.toFixed(1)} kWh &middot; demand{" "}
               {marketState!.total_demand_kwh.toFixed(1)} kWh
+              {marketState!.transformer_load_pct != null && (
+                <>
+                  {" "}
+                  &middot; transformer {marketState!.transformer_load_kw >= 0 ? "importing" : "exporting"}{" "}
+                  {Math.round(marketState!.transformer_load_pct)}%
+                </>
+              )}
             </p>
           </>
         ) : (

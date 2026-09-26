@@ -6,7 +6,7 @@ const CONFIG: Record<GridHealth, { label: string; bg: string; fg: string }> = {
   red: { label: "Grid stressed", bg: "var(--status-critical-soft)", fg: "var(--status-critical)" },
 };
 
-export function GridHealthBadge({ health }: { health: GridHealth }) {
+export function GridHealthBadge({ health, loadPct }: { health: GridHealth; loadPct?: number | null }) {
   const cfg = CONFIG[health];
   return (
     <span
@@ -15,6 +15,11 @@ export function GridHealthBadge({ health }: { health: GridHealth }) {
     >
       <span className="h-2 w-2 rounded-full" style={{ background: cfg.fg }} aria-hidden />
       {cfg.label}
+      {loadPct != null && (
+        <span className="font-normal tabular-nums" title="Transformer load, % of rated capacity">
+          &middot; transformer {Math.round(loadPct)}%
+        </span>
+      )}
     </span>
   );
 }

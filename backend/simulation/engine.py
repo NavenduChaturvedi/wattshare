@@ -39,6 +39,8 @@ class SimulationEngine:
         else:
             self.households = generate_households(self.config.n_households, self.config.solar_ratio, self.rng)
 
+        self.transformer_capacity_kw = round(self.config.transformer_kw_per_home * len(self.households), 2)
+
         self.real_data = self.config.data_source == "real"
         if self.real_data:
             loc = self.config.location

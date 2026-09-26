@@ -3,6 +3,7 @@ import sqlite3
 from pathlib import Path
 from typing import List, Optional
 
+from backend.market.ledger import GENESIS_HASH, trade_hash
 from backend.market.models import MarketState, Trade
 from backend.marketplace.models import Listing
 from backend.simulation.models import Household
@@ -36,7 +37,10 @@ CREATE TABLE IF NOT EXISTS trades (
     timestamp INTEGER NOT NULL,
     listing_id INTEGER,
     fulfilled_as_listed INTEGER,
-    tick INTEGER
+    tick INTEGER,
+    -- Tamper-evident hash chain (see backend/market/ledger.py).
+    prev_hash TEXT,
+    hash TEXT
 );
 
 CREATE TABLE IF NOT EXISTS market_states (
@@ -150,7 +154,11 @@ def fetch_households(conn: sqlite3.Connection) -> List[dict]:
 def insert_trade(conn: sqlite3.Connection, trade: Trade) -> int:
     """Inserts one trade and returns the id SQLite assigned it. The database is the
     only source of trade ids -- dispatcher and marketplace trades share this table,
-    so an in-memory counter on either side would eventually collide with the other."""
+    so an in-memory counter on either side would eventually collide with the other.
+
+    Also links the trade into the ledger's hash chain. The hash is computed *after*
+    the INSERT: the insert takes SQLite's write lock, so the row before this one is
+    final and no concurrent request can chain onto the same predecessor."""
     cursor = conn.execute(
         """
         INSERT INTO trades (seller_id, buyer_id, amount_kwh, price_per_kwh, timestamp,
@@ -169,7 +177,20 @@ def insert_trade(conn: sqlite3.Connection, trade: Trade) -> int:
             "tick": trade.tick,
         },
     )
-    return cursor.lastrowid
+    trade_id = cursor.lastrowid
+
+    prev = conn.execute("SELECT hash FROM trades WHERE id < ? ORDER BY id DESC LIMIT 1", (trade_id,)).fetchone()
+    prev_hash = prev["hash"] if prev else GENESIS_HASH
+    row = conn.execute("SELECT * FROM trades WHERE id = ?", (trade_id,)).fetchone()
+    conn.execute(
+        "UPDATE trades SET prev_hash = ?, hash = ? WHERE id = ?",
+        (prev_hash, trade_hash(prev_hash, dict(row)), trade_id),
+    )
+    return trade_id
+
+
+def fetch_ledger_rows(conn: sqlite3.Connection) -> List[dict]:
+    return [dict(r) for r in conn.execute("SELECT * FROM trades ORDER BY id").fetchall()]
 
 
 def fetch_trades(conn: sqlite3.Connection) -> List[dict]:

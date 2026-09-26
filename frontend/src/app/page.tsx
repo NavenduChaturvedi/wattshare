@@ -36,7 +36,7 @@ export default function Home() {
         </div>
 
         <HouseholdTable households={sim.households} />
-        <TradeFeed trades={sim.trades} />
+        <TradeFeed trades={sim.trades} ledger={sim.ledger} />
       </div>
     </div>
   );

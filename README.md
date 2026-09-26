@@ -236,6 +236,7 @@ Open http://localhost:3000 with the backend running. Each simulated hour runs in
 |---|---|---|
 | `/households` | GET | Current state of all households |
 | `/simulation` | GET | The hour currently open for trading |
+| `/ledger/verify` | GET | Re-walk the trade hash chain; reports the first broken trade |
 | `/simulate/tick` | POST | Advance the simulation by one hour |
 | `/match` | POST | Run one matching cycle at the current hour |
 | `/trades` | GET | Full trade history |
@@ -297,9 +298,14 @@ kind of institutional partnership.
 
 The real DERC/UPERC pilots settle through blockchain-*enabled* ledgers
 integrated with DISCOM billing systems, not public gas-fee chains. WattShare's
-trade ledger is a normal database. A tamper-evident hash chain (blockchain-
-*inspired*, not a deployed smart contract) is a stretch feature, not core
-scope. That keeps the project honest about what it is: a matching and pricing
+trade ledger is a normal database, made **tamper-evident with a hash chain**:
+- Each trade stores `hash = sha256(prev_hash ‖ canonical trade fields)`.
+- `GET /ledger/verify` re-walks the chain. Edit, delete or reorder any past
+  trade and the chain breaks at that trade.
+- The Trade Feed on the dashboard shows the result.
+
+This is blockchain-*inspired*, not a deployed smart contract or a distributed
+ledger. That keeps the project honest about what it is: a matching and pricing
 engine, not a blockchain product wearing a solar costume.
 
 ## Non-goals
@@ -316,5 +322,4 @@ Deliberately out of scope for this project:
 
 Not implemented, but the data model leaves room for them:
 - Battery storage (households store surplus instead of always selling).
-- Hash-chained trade ledger for a tamper-evident history.
 - Swap SQLite for Postgres if this ever needs real concurrent persistence.

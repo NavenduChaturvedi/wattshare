@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { PricePoint } from "@/components/PriceChart";
 import { api } from "./api";
-import type { Household, MarketState, SimConfig, Trade } from "./types";
+import type { Household, LedgerCheck, MarketState, SimConfig, Trade } from "./types";
 
 const AUTO_PLAY_INTERVAL_MS = 1500;
 // Free-tier hosting (Render) sleeps idle services; the first request can take ~a minute.
@@ -22,6 +22,7 @@ export function useSimulation() {
   const [config, setConfig] = useState<SimConfig | null>(null);
   const [households, setHouseholds] = useState<Household[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [ledger, setLedger] = useState<LedgerCheck | null>(null);
   const [marketState, setMarketState] = useState<MarketState | null>(null);
   const [priceHistory, setPriceHistory] = useState<PricePoint[]>([]);
   const [hour, setHour] = useState(0);
@@ -47,10 +48,12 @@ export function useSimulation() {
           const initialMarketState = await api.getMarketState();
           const initialConfig = await api.getConfig();
         const status = await api.getSimulationStatus();
+        const initialLedger = await api.verifyLedger();
           if (cancelled) return;
           setConfig(initialConfig);
           setHouseholds(initialHouseholds);
           setTrades(initialTrades);
+          setLedger(initialLedger);
           setMarketState(initialMarketState);
           setHour(status.hour);
           if (initialMarketState.timestamp !== null && initialMarketState.clearing_price !== null) {
@@ -98,6 +101,7 @@ export function useSimulation() {
 
       const tradeHistory = await api.getTrades();
       setTrades(tradeHistory);
+      setLedger(await api.verifyLedger());
       setError(null);
     } catch {
       setError(OFFLINE_MESSAGE);
@@ -116,6 +120,7 @@ export function useSimulation() {
 
   return {
     connection,
+    ledger,
     config,
     households,
     trades,

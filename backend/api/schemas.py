@@ -45,6 +45,13 @@ class MarketStateOut(BaseModel):
     transformer_load_pct: Optional[float] = None
 
 
+class LedgerVerifyOut(BaseModel):
+    valid: bool
+    trades_checked: int  # rows verified before the first break (all of them when valid)
+    head_hash: str  # hash of the last verified trade -- the chain's current tip
+    first_invalid_trade_id: Optional[int] = None
+
+
 class SimulationStatusOut(BaseModel):
     hour: int  # the hour currently open for trading (0-23)
     total_ticks: int

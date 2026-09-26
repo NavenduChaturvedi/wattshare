@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.config import load_config
 from backend.market.engine import MarketEngine
 from backend.market.grid_health import compute_grid_health
+from backend.market.ledger import verify_chain
 from backend.market.matching import Bid, Offer, match
 from backend.marketplace.execution import execute_trade
 from backend.marketplace.models import Listing
@@ -22,6 +23,7 @@ from .schemas import (
     BuyFromListingRequest,
     ConfigOut,
     HouseholdOut,
+    LedgerVerifyOut,
     ListingCreate,
     ListingOut,
     MarketStateOut,
@@ -114,6 +116,13 @@ def get_config():
 @app.get("/households", response_model=list[HouseholdOut])
 def get_households(conn=Depends(get_db)):
     return db.fetch_households(conn)
+
+
+@app.get("/ledger/verify", response_model=LedgerVerifyOut)
+def verify_ledger(conn=Depends(get_db)):
+    """Re-walks the trade hash chain from the first trade. Any edited, deleted or
+    reordered trade breaks every hash after it."""
+    return LedgerVerifyOut(**verify_chain(db.fetch_ledger_rows(conn)).__dict__)
 
 
 @app.get("/simulation", response_model=SimulationStatusOut)

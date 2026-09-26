@@ -39,6 +39,13 @@ export interface MarketState {
   transformer_load_pct: number | null;
 }
 
+export interface LedgerCheck {
+  valid: boolean;
+  trades_checked: number;
+  head_hash: string;
+  first_invalid_trade_id: number | null;
+}
+
 export interface SimulationStatus {
   hour: number; // the hour currently open for trading
   total_ticks: number;

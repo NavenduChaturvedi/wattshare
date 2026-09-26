@@ -1,12 +1,35 @@
-import type { Trade } from "@/lib/types";
+import type { LedgerCheck, Trade } from "@/lib/types";
 import { Card } from "./Card";
-import { ListIcon } from "./icons";
+import { ListIcon, ShieldIcon } from "./icons";
 
-export function TradeFeed({ trades }: { trades: Trade[] }) {
+function LedgerChip({ ledger }: { ledger: LedgerCheck }) {
+  const ok = ledger.valid;
+  return (
+    <span
+      className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium"
+      style={
+        ok
+          ? { background: "var(--status-good-soft)", color: "var(--status-good)" }
+          : { background: "var(--status-critical-soft)", color: "var(--status-critical)" }
+      }
+      title={`Hash-chained ledger. Chain tip: ${ledger.head_hash.slice(0, 16)}...`}
+    >
+      <ShieldIcon className="h-3.5 w-3.5" />
+      {ok ? `Ledger verified · ${ledger.trades_checked} trades` : `Ledger broken at trade #${ledger.first_invalid_trade_id}`}
+    </span>
+  );
+}
+
+export function TradeFeed({ trades, ledger }: { trades: Trade[]; ledger: LedgerCheck | null }) {
   const recent = [...trades].reverse();
 
   return (
-    <Card title="Trade Feed" subtitle={`${trades.length} trade(s) so far`} icon={<ListIcon className="h-4 w-4" />}>
+    <Card
+      title="Trade Feed"
+      subtitle={`${trades.length} trade(s) so far · tamper-evident ledger`}
+      icon={<ListIcon className="h-4 w-4" />}
+      action={ledger && ledger.trades_checked > 0 ? <LedgerChip ledger={ledger} /> : undefined}
+    >
       <div className="max-h-72 overflow-y-auto">
         {recent.length === 0 ? (
           <p className="py-6 text-center text-sm" style={{ color: "var(--ink-muted)" }}>

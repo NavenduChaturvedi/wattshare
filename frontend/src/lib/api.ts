@@ -1,6 +1,7 @@
 import type {
   BuyerListing,
   Household,
+  LedgerCheck,
   Listing,
   MarketState,
   MarketSummary,
@@ -35,6 +36,7 @@ export const api = {
   tick: () => request<TickResponse>("/simulate/tick", { method: "POST" }),
   match: () => request<MatchResponse>("/match", { method: "POST" }),
   getTrades: () => request<Trade[]>("/trades"),
+  verifyLedger: () => request<LedgerCheck>("/ledger/verify"),
   getMarketState: () => request<MarketState>("/market-state"),
 
   getSellerListing: (sellerId: string) => request<Listing | null>(`/listings/${sellerId}`),

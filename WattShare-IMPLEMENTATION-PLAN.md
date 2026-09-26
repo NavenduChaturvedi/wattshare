@@ -30,6 +30,11 @@
 > - `MarketState` now records `transformer_load_kw` and `transformer_load_pct`, and grid health uses load % in either direction.
 > - The dashboards show the transformer %.
 > - Real-day result: 55–70% importing overnight and up to about 70% exporting at midday. The premium rarely moves the price, because the heaviest imports happen at night when there's no local supply to price. Batteries (C2) are the lever that changes that.
+>
+> **Phase C3 is done (hash-chained ledger):**
+> - `backend/market/ledger.py` is a pure hash chain. Each hash is computed after the INSERT takes SQLite's write lock, so concurrent requests can't fork the chain.
+> - `GET /ledger/verify` re-walks the chain, and the Trade Feed shows a "Ledger verified" chip.
+> - Tests cover editing, deleting and re-hashing forged rows, plus tampering with the database directly underneath the API.
 
 ---
 
